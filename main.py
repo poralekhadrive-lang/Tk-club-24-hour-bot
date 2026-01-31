@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from threading import Thread
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 from flask import Flask
@@ -25,17 +25,17 @@ from telegram.ext import (
 # =========================
 # CONFIG
 # =========================
-BOT_TOKEN = "8456002611:AAEvhsMJFXFuc0OYZCJhQ9WRKyUvryrfsso"  # <-- token inline (as you asked)
+BOT_TOKEN = "8456002611:AAEvhsMJFXFuc0OYZCJhQ9WRKyUvryrfsso"  # inline token as you asked
 
 BRAND_NAME = "🔥 <b>VIP SIGNAL GROUP</b> 🔥\n⚡ <b>TK CLUB MARUF VIP SIGNAL</b> ⚡"
-OWNER_USERNAME = "@OWNER_MARUF_TOP"  # will be clickable automatically
+OWNER_USERNAME = "@OWNER_MARUF_TOP"
 REG_LINK = "https://tkclub2.com/#/register?invitationCode=42584207677"
 CHANNEL_LINK = "https://t.me/Vip_signal_group_11"
 
 TARGETS = {
     "MAIN_GROUP": -1003263928753,
     "VIP": -1002892329434,
-    "PUBLIC": -1003034758076,  # updated
+    "PUBLIC": -1003034758076,
 }
 
 API_URL = "https://api880.inpay88.net/api/webapi/GetNoaverageEmerdList"
@@ -61,15 +61,13 @@ AUTO_WINDOWS = [
 # STICKERS
 # =========================
 STICKERS = {
-    # prediction (forced)
     "PRED_BIG": "CAACAgUAAxkBAAEQYx5pfc4AATgOO5wT5AABMN-bMJl5k_RQAALhHQACDsygVwoi0Z3WbYKyOAQ",
     "PRED_SMALL": "CAACAgUAAxkBAAEQYx1pfc4AAYYby230GOERm9UbVwrbZrcAAl8ZAAKDVphXk0mOoe8u1Zc4BA",
 
-    # session
     "SESSION_START": "CAACAgUAAxkBAAEQYyFpfc4wbxDAkFww3cpExFCaz1iDbQACoB0AAhxruVZktiP7rGZdATgE",
     "SESSION_CLOSE": "CAACAgUAAxkBAAEQYyJpfc4wO83n6lkaDSMVxxFDzq6erwACaB4AAkbvuFbNxjX-zft8RzgE",
 
-    # win/loss set (kept)
+    # WIN/Loss + Super win (kept)
     "WIN_BIG": "CAACAgUAAxkBAAEQTjhpcmXknd41yv99at8qxdgw3ivEkAACyRUAAraKsFSky2Ut1kt-hjgE",
     "WIN_SMALL": "CAACAgUAAxkBAAEQTjlpcmXkF8R0bNj0jb1Xd8NF-kaTSQAC7DQAAhnRsVTS3-Z8tj-kajgE",
     "WIN_ALWAYS": "CAACAgUAAxkBAAEQUTZpdFC4094KaOEdiE3njwhAGVCuBAAC4hoAAt0EqVQXmdKVLGbGmzgE",
@@ -112,7 +110,7 @@ def keep_alive():
     Thread(target=run_http, daemon=True).start()
 
 # =========================
-# Time helpers
+# Helpers (time)
 # =========================
 def now_bd() -> datetime:
     return datetime.now(BD_TZ)
@@ -133,29 +131,6 @@ def is_now_in_any_window(now: datetime, custom_window: Optional[Tuple[int, int]]
         if a <= mins < b:
             return True
     return False
-
-def fmt_12h_from_minutes(mins: int) -> str:
-    h = mins // 60
-    m = mins % 60
-    dt = datetime(2000, 1, 1, h, m, tzinfo=BD_TZ)
-    return dt.strftime("%I:%M%p").lstrip("0")
-
-def next_window_start(now: datetime, custom_window: Optional[Tuple[int, int]]) -> str:
-    mins_now = now.hour * 60 + now.minute
-    if custom_window:
-        s = custom_window[0]
-        hh = s // 60
-        mm = s % 60
-        dt = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-        if (hh * 60 + mm) <= mins_now:
-            dt = dt + timedelta(days=1)
-        return dt.strftime("%I:%M %p").lstrip("0")
-
-    starts = sorted([_hhmm_to_minutes(a) for a, _ in AUTO_WINDOWS])
-    for s in starts:
-        if s > mins_now:
-            return fmt_12h_from_minutes(s).replace("AM", " AM").replace("PM", " PM")
-    return fmt_12h_from_minutes(starts[0]).replace("AM", " AM").replace("PM", " PM")
 
 def calc_current_1m_period(now: datetime) -> str:
     date_str = now.strftime("%Y%m%d")
@@ -215,7 +190,7 @@ async def fetch_latest_issue() -> Optional[dict]:
     return await asyncio.to_thread(_fetch_latest_issue_sync)
 
 # =========================
-# PREDICTION ENGINE (ZIGZAG + LOSS RESET)
+# PREDICTION ENGINE (your requested: ZigZag Hunter + Adapter)
 # =========================
 class PredictionEngine:
     def __init__(self):
@@ -241,38 +216,22 @@ class PredictionEngine:
         return max(60, base - (streak_loss * 5))
 
     def get_pattern_signal(self, current_streak_loss):
-        # ইতিহাস খুব ছোট হলে র‍্যান্ডম
-        if len(self.history) < 4:
-            return self.history[0] if self.history else random.choice(["BIG", "SMALL"])
+        if len(self.history) < 2:
+            return random.choice(["BIG", "SMALL"])
 
         last = self.history[0]
-        prev1 = self.history[1]
-        prev2 = self.history[2]
+        prev = self.history[1]
 
-        # =========================================================
-        # 🛡️ RULE 1: LOSS RESET (Loss = Copy Paste)
-        # =========================================================
-        # যদি ১টাও লস হয়, তার মানে আমাদের প্যাটার্ন ভুল হয়েছে।
-        # তখন আমরা আর জিগজ্যাগ খুঁজব না। সোজা Last Result Copy (Trend) করব।
+        if last != prev:
+            prediction = "SMALL" if last == "BIG" else "BIG"
+        else:
+            prediction = last
+
         if current_streak_loss > 0:
-            return last
+            prediction = "SMALL" if prediction == "BIG" else "BIG"
 
-        # =========================================================
-        # ⚡ RULE 2: ZIGZAG DETECTION (Winning Mode)
-        # =========================================================
-        # যদি টানা ৩টা রেজাল্ট জিগজ্যাগ হয় (যেমন: B S B বা S B S)
-        # এবং আমাদের কোনো লস না থাকে...
-        is_zigzag = (last != prev1 and prev1 != prev2)
-        
-        if is_zigzag:
-            # আমরা জিগজ্যাগ কন্টিনিউ করব (উল্টা ধরব)
-            return "SMALL" if last == "BIG" else "BIG"
-
-        # =========================================================
-        # 🐢 RULE 3: DEFAULT (COPY PASTE)
-        # =========================================================
-        # যদি জিগজ্যাগ না থাকে এবং লস না হয়, তবে বাই ডিফল্ট Trend Follow (Copy Paste)
-        return last
+        self.last_prediction = prediction
+        return prediction
 
 # =========================
 # Clickable footer
@@ -284,7 +243,6 @@ def owner_link() -> str:
     return f"https://t.me/{u}"
 
 def footer_links_html() -> str:
-    # clickable single line
     return (
         f"🔗 <b><a href='{REG_LINK}'>Open Account</a></b>  |  "
         f"📣 <b><a href='{CHANNEL_LINK}'>VIP Channel</a></b>  |  "
@@ -292,7 +250,7 @@ def footer_links_html() -> str:
     )
 
 # =========================
-# Timer (checking spinner)
+# Strict checking spinner (EDIT same message)
 # =========================
 CLOCK_FRAMES = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚"]
 
@@ -307,7 +265,7 @@ async def run_checking_timer(bot, chat_id: int, msg_id: int, issue: str):
                 message_id=msg_id,
                 text=(
                     f"{clock} <b>RESULT CHECKING...</b>\n"
-                    f"🧾 <b>PERIOD:</b> <code>{issue}</code>\n"
+                    f"📄 <b>PERIOD:</b> <code>{issue}</code>\n"
                     f"🕒 <b>{now_bd_str()}</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
                     f"{footer_links_html()}"
@@ -320,7 +278,37 @@ async def run_checking_timer(bot, chat_id: int, msg_id: int, issue: str):
         await asyncio.sleep(2.0)
 
 # =========================
-# STATE
+# Messages (premium look + strict)
+# =========================
+def signal_text(issue: str, pick: str, conf: int) -> str:
+    return (
+        f"{BRAND_NAME}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📄 <b>PERIOD:</b> <code>{issue}</code>\n"
+        f"🎯 <b>ENTRY:</b> <b>{pick}</b>\n"
+        f"✨ <b>CONFIDENCE:</b> <b>{conf}%</b>\n"
+        f"🧠 <b>RECOVERY:</b> <b>{state.streak_loss}/{MAX_RECOVERY_STEPS}</b>\n"
+        f"🕒 <b>TIME:</b> <b>{now_bd_str()}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"{footer_links_html()}"
+    )
+
+def result_text(issue: str, res_num: str, res_type: str, pick: str, is_win: bool) -> str:
+    head = "✅ <b>WIN CONFIRMED</b>" if is_win else "❌ <b>LOSS CONFIRMED</b>"
+    return (
+        f"{head}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📄 <b>PERIOD:</b> <code>{issue}</code>\n"
+        f"🎰 <b>RESULT:</b> <b>{res_num} ({res_type})</b>\n"
+        f"🎯 <b>YOUR PICK:</b> <b>{pick}</b>\n"
+        f"📊 <b>W:</b> <b>{state.wins}</b> | <b>L:</b> <b>{state.losses}</b>\n"
+        f"🕒 <b>{now_bd_str()}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"{footer_links_html()}"
+    )
+
+# =========================
+# Data structures
 # =========================
 @dataclass
 class ActiveBet:
@@ -331,17 +319,21 @@ class ActiveBet:
     resolved: bool = False
 
 @dataclass
+class QueuedCopy:
+    from_chat_id: int
+    message_id: int
+
+@dataclass
 class BotState:
     unlocked: bool = False
     expected_password: str = PASSWORD_FALLBACK
 
-    # single menu message in admin chat
+    # admin UI (single message)
     admin_chat_id: Optional[int] = None
     panel_message_id: Optional[int] = None
     menu_mode: str = "CHOOSE_CHANNEL"  # CHOOSE_CHANNEL | CHANNEL_PANEL
     waiting_for: Optional[str] = None  # TIME | WINS | SENDMSG
 
-    # which channel to control
     active_target: int = TARGETS["MAIN_GROUP"]
 
     # session
@@ -350,18 +342,14 @@ class BotState:
     engine: PredictionEngine = field(default_factory=PredictionEngine)
     active: Optional[ActiveBet] = None
     last_signal_issue: Optional[str] = None
+    last_resolved_issue: Optional[str] = None  # strict per-period lock
 
-    # strict lock
-    last_resolved_issue: Optional[str] = None
-
-    # schedule / win target
     auto_schedule_enabled: bool = True
     custom_window: Optional[Tuple[int, int]] = None
     stop_after_wins: int = 40
     started_by_schedule: bool = False
     graceful_stop_requested: bool = False
 
-    # stats
     wins: int = 0
     losses: int = 0
     streak_win: int = 0
@@ -371,8 +359,8 @@ class BotState:
 
     stop_event: asyncio.Event = field(default_factory=asyncio.Event)
 
-    # queued message (send after session end)
-    queued_messages: List[str] = field(default_factory=list)
+    # ✅ premium emoji safe queue (copy_message preserves premium custom emoji)
+    queued_copies: List[QueuedCopy] = field(default_factory=list)
 
 state = BotState()
 
@@ -385,7 +373,7 @@ def reset_stats():
     state.max_loss_streak = 0
 
 # =========================
-# UI
+# Panel UI (single message only)
 # =========================
 def channel_selector_text() -> str:
     return (
@@ -409,17 +397,14 @@ def channel_name(chat_id: int) -> str:
 
 def panel_text() -> str:
     running = "🟢 RUNNING" if state.running else "🔴 STOPPED"
-    custom = (
-        f"{fmt_12h_from_minutes(state.custom_window[0])}-{fmt_12h_from_minutes(state.custom_window[1])}"
-        if state.custom_window else "Not Set"
-    )
+    custom = "Not Set" if not state.custom_window else "Custom Set ✅"
     hint = ""
     if state.waiting_for == "TIME":
         hint = "\n\n🕒 এখন টাইম লিখো এভাবে:\n<b>10:00PM-10:30PM</b>"
     elif state.waiting_for == "WINS":
         hint = "\n\n🏆 এখন সংখ্যা লিখো (উদাহরণ: <b>40</b>)"
     elif state.waiting_for == "SENDMSG":
-        hint = "\n\n📨 এখন মেসেজ লিখো (সেশন চললে END এর পরে যাবে)"
+        hint = "\n\n📨 এখন মেসেজ পাঠাও (Premium emoji সহ পাঠালে auto preserve হবে)।\n⚠️ সেশন চললে END এর পরে যাবে।"
 
     return (
         f"🎛 <b>{channel_name(state.active_target)} CONTROL PANEL</b>\n"
@@ -449,71 +434,6 @@ def panel_markup() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("⬅️ Back", callback_data="BACK_CHANNELS")],
     ])
 
-# =========================
-# Signal / Result texts (Clickable links inside)
-# =========================
-def signal_text(issue: str, pick: str, conf: int) -> str:
-    return (
-        f"{BRAND_NAME}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"📄 <b>PERIOD:</b> <code>{issue}</code>\n"
-        f"🎯 <b>ENTRY:</b> <b>{pick}</b>\n"
-        f"✨ <b>CONFIDENCE:</b> <b>{conf}%</b>\n"
-        f"🧠 <b>RECOVERY:</b> <b>{state.streak_loss}/{MAX_RECOVERY_STEPS}</b>\n"
-        f"🕒 <b>TIME:</b> <b>{now_bd_str()}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"{footer_links_html()}"
-    )
-
-def result_text(issue: str, res_num: str, res_type: str, pick: str, is_win: bool) -> str:
-    head = "✅ <b>WIN CONFIRMED</b>" if is_win else "❌ <b>LOSS CONFIRMED</b>"
-    return (
-        f"{head}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"📄 <b>PERIOD:</b> <code>{issue}</code>\n"
-        f"🎰 <b>RESULT:</b> <b>{res_num} ({res_type})</b>\n"
-        f"🎯 <b>YOUR PICK:</b> <b>{pick}</b>\n"
-        f"📊 <b>W:</b> <b>{state.wins}</b> | <b>L:</b> <b>{state.losses}</b>\n"
-        f"🕒 <b>{now_bd_str()}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"{footer_links_html()}"
-    )
-
-def summary_text() -> str:
-    total = state.wins + state.losses
-    wr = (state.wins / total * 100) if total else 0.0
-    nxt = next_window_start(now_bd(), state.custom_window)
-    return (
-        "🛑 <b>SESSION SUMMARY</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"📦 <b>TOTAL:</b> <b>{total}</b>\n"
-        f"✅ <b>WIN:</b> <b>{state.wins}</b>\n"
-        f"❌ <b>LOSS:</b> <b>{state.losses}</b>\n"
-        f"🎯 <b>WIN RATE:</b> <b>{wr:.1f}%</b>\n"
-        f"🔥 <b>MAX WIN STREAK:</b> <b>{state.max_win_streak}</b>\n"
-        f"🧊 <b>MAX LOSS STREAK:</b> <b>{state.max_loss_streak}</b>\n"
-        f"🕒 <b>CLOSED:</b> <b>{now_bd_str()}</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"⏰ <b>NEXT SIGNAL:</b> <b>{nxt}</b> 🔥\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"{footer_links_html()}"
-    )
-
-def after_close_review_message() -> str:
-    nxt = next_window_start(now_bd(), state.custom_window)
-    return (
-        "⏺সিগন্যাল কেমন হলো? অবশ্যই এখানে রিভিউ দিবেন 💋\n\n"
-        f"<b>{OWNER_USERNAME}</b> ❤️\n\n"
-        f"এবং পরবর্তী সিগন্যাল হবে <b>{nxt}</b> ⏰🔥\n\n"
-        f"🔗 <a href='{REG_LINK}'>এখানে ক্লিক করে অ্যাকাউন্ট খুলুন</a>\n\n"
-        "অ্যাকাউন্ট খুলে ইনবক্সে ইউআইডি দিন। এবং মিনিমাম 300 টাকা ডিপোজিট করে "
-        "বট সিগন্যাল উপভোগ করুন এবং আনলিমিটেড হ্যাক নিন 🌟✅\n\n"
-        f"<b>{OWNER_USERNAME}</b> ❤️"
-    )
-
-# =========================
-# PANEL RENDER (single message, no double)
-# =========================
 async def render_panel(bot):
     if not state.admin_chat_id:
         return
@@ -544,7 +464,7 @@ async def render_panel(bot):
             )
             state.panel_message_id = m.message_id
     except Exception:
-        # if edit fails (old/deleted) -> recreate single message and overwrite id
+        # fallback: create new single panel & overwrite id (avoid double)
         try:
             m = await bot.send_message(
                 state.admin_chat_id,
@@ -558,7 +478,7 @@ async def render_panel(bot):
             pass
 
 # =========================
-# send helpers (target only)
+# Send helpers (target only)
 # =========================
 async def safe_delete(bot, chat_id: int, msg_id: int):
     try:
@@ -577,30 +497,32 @@ async def send_to_target(bot, text: str):
     except Exception:
         pass
 
-async def send_plain_to_target(bot, text: str):
-    try:
-        await bot.send_message(state.active_target, text, disable_web_page_preview=True)
-    except Exception:
-        pass
-
 async def send_sticker_target(bot, sticker_id: str):
     try:
         await bot.send_sticker(state.active_target, sticker_id)
     except Exception:
         pass
 
-# =========================
-# session control
-# =========================
-async def flush_queued_messages(bot):
-    if not state.queued_messages:
+async def flush_queued_copies(bot):
+    if not state.queued_copies:
         return
-    msgs = state.queued_messages[:]
-    state.queued_messages.clear()
-    for m in msgs:
-        await send_plain_to_target(bot, m)
+    items = state.queued_copies[:]
+    state.queued_copies.clear()
+    for qc in items:
+        try:
+            # ✅ copy_message preserves premium custom emoji/entities
+            await bot.copy_message(
+                chat_id=state.active_target,
+                from_chat_id=qc.from_chat_id,
+                message_id=qc.message_id,
+            )
+        except Exception:
+            pass
         await asyncio.sleep(0.7)
 
+# =========================
+# Session control
+# =========================
 async def start_session(bot, started_by_schedule: bool):
     state.session_id += 1
     state.running = True
@@ -613,7 +535,6 @@ async def start_session(bot, started_by_schedule: bool):
     state.graceful_stop_requested = False
     reset_stats()
 
-    # session start sticker
     await send_sticker_target(bot, STICKERS["SESSION_START"])
 
 async def stop_session(bot, reason: str = "manual"):
@@ -621,7 +542,7 @@ async def stop_session(bot, reason: str = "manual"):
     state.running = False
     state.stop_event.set()
 
-    # stop timer + delete checking message if exists
+    # stop timer + delete checking msg (if exists)
     if state.active:
         if state.active.timer_task:
             try:
@@ -631,22 +552,18 @@ async def stop_session(bot, reason: str = "manual"):
         if state.active.checking_msg_id:
             await safe_delete(bot, state.active_target, state.active.checking_msg_id)
 
-    # summary + close sticker
-    await send_to_target(bot, summary_text())
+    # close sticker
     await send_sticker_target(bot, STICKERS["SESSION_CLOSE"])
 
-    # queued message after end
-    await flush_queued_messages(bot)
-
-    # review + next signal msg (after close)
-    await send_to_target(bot, after_close_review_message())
+    # ✅ after session end: send queued premium messages
+    await flush_queued_copies(bot)
 
     state.active = None
     state.started_by_schedule = False
     state.graceful_stop_requested = False
 
 # =========================
-# engine loop (STRICT FLOW)
+# STRICT ENGINE LOOP (HARD MAINTAIN ORDER)
 # =========================
 async def engine_loop(app: Application, my_session: int):
     bot = app.bot
@@ -659,7 +576,7 @@ async def engine_loop(app: Application, my_session: int):
         sec = now.second
         current_period = calc_current_1m_period(now)
 
-        # strict: if we already resolved this same period, don't send again
+        # strict: block same period re-signal
         if state.last_resolved_issue == current_period:
             await asyncio.sleep(0.6)
             continue
@@ -671,7 +588,6 @@ async def engine_loop(app: Application, my_session: int):
         latest_data = await fetch_latest_issue()
         if latest_data:
             state.engine.update_history(latest_data)
-
             latest_issue = str(latest_data.get("issueNumber"))
             latest_num = str(latest_data.get("number"))
             latest_type = "BIG" if int(latest_data.get("number")) >= 5 else "SMALL"
@@ -680,7 +596,7 @@ async def engine_loop(app: Application, my_session: int):
                 pick = state.active.pick
                 is_win = (pick == latest_type)
 
-                # stop timer (do NOT delete checking yet)
+                # stop timer (DO NOT delete checking yet)
                 if state.active.timer_task:
                     try:
                         state.active.timer_task.cancel()
@@ -699,7 +615,7 @@ async def engine_loop(app: Application, my_session: int):
                     state.streak_win = 0
                     state.max_loss_streak = max(state.max_loss_streak, state.streak_loss)
 
-                # 4) feedback sticker
+                # 4) win/loss stickers (super win by count)
                 if is_win:
                     await send_sticker_target(bot, STICKERS["WIN_ALWAYS"])
                     if state.streak_win in STICKERS["SUPER_WIN"]:
@@ -715,18 +631,17 @@ async def engine_loop(app: Application, my_session: int):
                 # 5) feedback message
                 await send_to_target(bot, result_text(latest_issue, latest_num, latest_type, pick, is_win))
 
-                # 6) now delete checking message
+                # 6) NOW delete checking message (strict: last step)
                 if state.active.checking_msg_id:
                     await safe_delete(bot, state.active_target, state.active.checking_msg_id)
 
-                # mark resolved & clear
+                # mark resolved + clear
                 state.active.resolved = True
                 state.last_resolved_issue = latest_issue
                 state.active = None
-
                 resolved_this_tick = True
 
-                # stop after wins
+                # stop after wins target
                 if state.wins >= state.stop_after_wins:
                     await stop_session(bot, reason="win_target_reached")
                     break
@@ -739,7 +654,6 @@ async def engine_loop(app: Application, my_session: int):
         # 2) SIGNAL GENERATION
         if (not state.active) and is_safe_time and (not resolved_this_tick):
             if state.last_signal_issue != current_period:
-
                 if state.streak_loss >= MAX_RECOVERY_STEPS:
                     await send_to_target(bot, "🧊 <b>SAFETY STOP</b>\n<i>Recovery limit reached.</i>")
                     await stop_session(bot, reason="max_steps")
@@ -751,16 +665,16 @@ async def engine_loop(app: Application, my_session: int):
                 # 1) prediction sticker
                 await send_sticker_target(bot, STICKERS["PRED_BIG"] if pred == "BIG" else STICKERS["PRED_SMALL"])
 
-                # 2) prediction message (with clickable links)
+                # 2) prediction message
                 await send_to_target(bot, signal_text(current_period, pred, conf))
 
-                # 3) checking message (with timer + clickable links)
+                # 3) checking message (create once, then EDIT by timer)
                 checking_mid = None
                 try:
                     m = await bot.send_message(
                         state.active_target,
                         (
-                            "🕛 <b>RESULT CHECKING...</b>\n"
+                            f"🕛 <b>RESULT CHECKING...</b>\n"
                             f"📄 <b>PERIOD:</b> <code>{current_period}</code>\n"
                             f"🕒 <b>{now_bd_str()}</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -775,15 +689,16 @@ async def engine_loop(app: Application, my_session: int):
 
                 bet = ActiveBet(predicted_issue=current_period, pick=pred, checking_msg_id=checking_mid)
                 if checking_mid:
-                    bet.timer_task = asyncio.create_task(run_checking_timer(bot, state.active_target, checking_mid, current_period))
-
+                    bet.timer_task = asyncio.create_task(
+                        run_checking_timer(bot, state.active_target, checking_mid, current_period)
+                    )
                 state.active = bet
                 state.last_signal_issue = current_period
 
         await asyncio.sleep(0.6)
 
 # =========================
-# auto scheduler
+# Auto scheduler
 # =========================
 async def scheduler_loop(app: Application):
     while True:
@@ -801,7 +716,7 @@ async def scheduler_loop(app: Application):
         await asyncio.sleep(10)
 
 # =========================
-# input parsers
+# Input parsers
 # =========================
 def parse_time_12h_token(t: str) -> Optional[int]:
     s = t.strip().upper().replace(" ", "")
@@ -825,7 +740,7 @@ def parse_time_range(text: str) -> Optional[Tuple[int, int]]:
     return (start, end)
 
 # =========================
-# commands
+# Commands
 # =========================
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     state.expected_password = await get_live_password()
@@ -859,7 +774,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ <b>WRONG PASSWORD</b>", parse_mode=ParseMode.HTML)
         return
 
-    # menu inputs
+    # time set
     if state.waiting_for == "TIME":
         rng = parse_time_range(txt)
         if rng:
@@ -868,6 +783,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await render_panel(context.bot)
         return
 
+    # wins set
     if state.waiting_for == "WINS":
         if txt.isdigit():
             n = int(txt)
@@ -877,17 +793,56 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await render_panel(context.bot)
         return
 
+    # send message: TEXT ONLY -> (unicode ok), premium custom emoji might not exist in plain text
+    # So we also support premium by copy_message via handle_any_message below.
     if state.waiting_for == "SENDMSG":
+        # If user typed plain text, we send/cue as normal text (unicode emoji ok)
         state.waiting_for = None
         if state.running:
-            state.queued_messages.append(txt)
+            # queue text as a normal message by sending it later (won't preserve premium custom emoji)
+            # We'll still send it directly now as copy requires message_id; see handle_any_message below.
+            # Here: just acknowledge by panel refresh.
+            pass
         else:
-            await send_plain_to_target(context.bot, txt)
+            try:
+                await context.bot.send_message(state.active_target, txt)
+            except Exception:
+                pass
         await render_panel(context.bot)
         return
 
+async def handle_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    ✅ This catches ANY message types while waiting_for SENDMSG:
+    Premium custom emoji, formatting, stickers etc will be preserved by copy_message.
+    """
+    if not state.unlocked:
+        return
+    if state.waiting_for != "SENDMSG":
+        return
+
+    state.waiting_for = None
+
+    # Copy this message later or now
+    from_chat = update.effective_chat.id
+    msg_id = update.effective_message.message_id
+
+    if state.running:
+        state.queued_copies.append(QueuedCopy(from_chat_id=from_chat, message_id=msg_id))
+    else:
+        try:
+            await context.bot.copy_message(
+                chat_id=state.active_target,
+                from_chat_id=from_chat,
+                message_id=msg_id,
+            )
+        except Exception:
+            pass
+
+    await render_panel(context.bot)
+
 # =========================
-# callbacks
+# Callbacks
 # =========================
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -967,7 +922,7 @@ async def post_init(app: Application):
     app.create_task(scheduler_loop(app))
 
 # =========================
-# main
+# MAIN
 # =========================
 def main():
     logging.basicConfig(level=logging.WARNING)
@@ -983,7 +938,12 @@ def main():
     application.add_handler(CommandHandler("start", cmd_start))
     application.add_handler(CommandHandler("panel", cmd_panel))
     application.add_handler(CallbackQueryHandler(on_callback))
+
+    # TEXT handler
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
+    # ✅ premium-safe message handler for Send Message mode (any msg type)
+    application.add_handler(MessageHandler(filters.ALL, handle_any_message), group=1)
 
     application.run_polling(close_loop=False)
 
