@@ -25,17 +25,17 @@ from telegram.ext import (
 # =========================
 # CONFIG
 # =========================
-BOT_TOKEN = "8456002611:AAHI8s74CeabkdjLHMZ3zDISBS8_0ZyPq3s"  # <-- তোমার টোকেন
+BOT_TOKEN = "8456002611:AAEvhsMJFXFuc0OYZCJhQ9WRKyUvryrfsso"  # <-- token here
+
 BRAND_NAME = "⚡ 𝗧𝗞 𝗖𝗟𝗨𝗕 𝗠𝗔𝗥𝗨𝗙 𝗩𝗜𝗣 𝗦𝗜𝗚𝗡𝗔𝗟 ⚡"
 OWNER_USERNAME = "@OWNER_MARUF_TOP"
-
 REG_LINK = "https://tkclub2.com/#/register?invitationCode=42584207677"
 CHANNEL_LINK = "https://t.me/Vip_signal_group_11"
 
 TARGETS = {
     "MAIN_GROUP": -1003263928753,
     "VIP": -1002892329434,
-    "PUBLIC": -1003034758076,  # ✅ updated
+    "PUBLIC": -1003034758076,
 }
 
 API_URL = "https://api880.inpay88.net/api/webapi/GetNoaverageEmerdList"
@@ -48,9 +48,6 @@ PASSWORD_FALLBACK = "2222"
 MAX_RECOVERY_STEPS = 8
 FETCH_TIMEOUT = 6.0
 
-# =========================
-# DEFAULT AUTO WINDOWS (kept)
-# =========================
 AUTO_WINDOWS = [
     ("21:00", "21:30"),
     ("23:00", "23:30"),
@@ -60,85 +57,23 @@ AUTO_WINDOWS = [
     ("19:00", "19:30"),
 ]
 
-
-def _hhmm_to_minutes(hhmm: str) -> int:
-    h, m = hhmm.split(":")
-    return int(h) * 60 + int(m)
-
-
-AUTO_WINDOWS_MIN = [(_hhmm_to_minutes(a), _hhmm_to_minutes(b)) for a, b in AUTO_WINDOWS]
-
-
-def now_bd() -> datetime:
-    return datetime.now(BD_TZ)
-
-
-def now_bd_str() -> str:
-    return now_bd().strftime("%I:%M:%S %p").lstrip("0")
-
-
-def fmt_12h(dt: datetime) -> str:
-    return dt.strftime("%I:%M %p").lstrip("0")
-
-
-def fmt_12h_from_minutes(mins: int) -> str:
-    h = mins // 60
-    m = mins % 60
-    dt = datetime(2000, 1, 1, h, m, tzinfo=BD_TZ)
-    return fmt_12h(dt)
-
-
-def calc_current_1m_period(now: datetime) -> str:
-    date_str = now.strftime("%Y%m%d")
-    total_slots = (now.hour * 60) + now.minute + 1
-    return f"{date_str}01{total_slots:04d}"
-
-
-def is_now_in_any_window(now: datetime, custom_window: Optional[Tuple[int, int]]) -> bool:
-    mins = now.hour * 60 + now.minute
-    windows = [custom_window] if custom_window else AUTO_WINDOWS_MIN
-    for a, b in windows:
-        if a <= mins < b:
-            return True
-    return False
-
-
-def next_window_start(now: datetime, custom_window: Optional[Tuple[int, int]]) -> str:
-    mins_now = now.hour * 60 + now.minute
-
-    if custom_window:
-        s = custom_window[0]
-        h = s // 60
-        m = s % 60
-        dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
-        if (h * 60 + m) <= mins_now:
-            dt = dt + timedelta(days=1)
-        return fmt_12h(dt)
-
-    starts = sorted([_hhmm_to_minutes(a) for a, _ in AUTO_WINDOWS])
-    for s in starts:
-        if s > mins_now:
-            return fmt_12h_from_minutes(s)
-    return fmt_12h_from_minutes(starts[0])
-
-
 # =========================
 # STICKERS
 # =========================
 STICKERS = {
-    # ✅ Your required pred stickers
     "PRED_BIG": "CAACAgUAAxkBAAEQYx5pfc4AATgOO5wT5AABMN-bMJl5k_RQAALhHQACDsygVwoi0Z3WbYKyOAQ",
     "PRED_SMALL": "CAACAgUAAxkBAAEQYx1pfc4AAYYby230GOERm9UbVwrbZrcAAl8ZAAKDVphXk0mOoe8u1Zc4BA",
-    # ✅ Session start/close
+
     "SESSION_START": "CAACAgUAAxkBAAEQYyFpfc4wbxDAkFww3cpExFCaz1iDbQACoB0AAhxruVZktiP7rGZdATgE",
     "SESSION_CLOSE": "CAACAgUAAxkBAAEQYyJpfc4wO83n6lkaDSMVxxFDzq6erwACaB4AAkbvuFbNxjX-zft8RzgE",
-    # ✅ win/loss + super win
+
     "WIN_BIG": "CAACAgUAAxkBAAEQTjhpcmXknd41yv99at8qxdgw3ivEkAACyRUAAraKsFSky2Ut1kt-hjgE",
     "WIN_SMALL": "CAACAgUAAxkBAAEQTjlpcmXkF8R0bNj0jb1Xd8NF-kaTSQAC7DQAAhnRsVTS3-Z8tj-kajgE",
     "WIN_ALWAYS": "CAACAgUAAxkBAAEQUTZpdFC4094KaOEdiE3njwhAGVCuBAAC4hoAAt0EqVQXmdKVLGbGmzgE",
     "WIN_ANY": "CAACAgUAAxkBAAEQTydpcz9Kv1L2PJyNlbkcZpcztKKxfQACDRsAAoq1mFcAAYLsJ33TdUA4BA",
     "WIN_EXTRA": "CAACAgUAAxkBAAEQWctpeJdTTmIB7FFU1RgNNxaBs5FtggACDxgAAgTqOVf77zJ4WoeanjgE",
     "LOSS": "CAACAgUAAxkBAAEQTytpcz9VQoHyZ5ClbKSqKCJbpqX6yQACahYAAl1wAAFUL9xOdyh8UL84BA",
+
     "WIN_POOL": [
         "CAACAgUAAxkBAAEQTzNpcz9ns8rx_5xmxk4HHQOJY2uUQQAC3RoAAuCpcFbMKj0VkxPOdTgE",
         "CAACAgUAAxkBAAEQTzRpcz9ni_I4CjwFZ3iSt4xiXxFgkwACkxgAAnQKcVYHd8IiRqfBXTgE",
@@ -174,6 +109,57 @@ def keep_alive():
     Thread(target=run_http, daemon=True).start()
 
 # =========================
+# TIME HELPERS
+# =========================
+def now_bd() -> datetime:
+    return datetime.now(BD_TZ)
+
+def now_bd_str() -> str:
+    return now_bd().strftime("%I:%M:%S %p").lstrip("0")
+
+def _hhmm_to_minutes(hhmm: str) -> int:
+    h, m = hhmm.split(":")
+    return int(h) * 60 + int(m)
+
+AUTO_WINDOWS_MIN = [(_hhmm_to_minutes(a), _hhmm_to_minutes(b)) for a, b in AUTO_WINDOWS]
+
+def is_now_in_any_window(now: datetime, custom_window: Optional[Tuple[int, int]]) -> bool:
+    mins = now.hour * 60 + now.minute
+    windows = [custom_window] if custom_window else AUTO_WINDOWS_MIN
+    for a, b in windows:
+        if a <= mins < b:
+            return True
+    return False
+
+def fmt_12h_from_minutes(mins: int) -> str:
+    h = mins // 60
+    m = mins % 60
+    dt = datetime(2000, 1, 1, h, m, tzinfo=BD_TZ)
+    return dt.strftime("%I:%M%p").lstrip("0")
+
+def next_window_start(now: datetime, custom_window: Optional[Tuple[int, int]]) -> str:
+    mins_now = now.hour * 60 + now.minute
+    if custom_window:
+        s = custom_window[0]
+        hh = s // 60
+        mm = s % 60
+        dt = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        if (hh * 60 + mm) <= mins_now:
+            dt = dt + timedelta(days=1)
+        return dt.strftime("%I:%M %p").lstrip("0")
+
+    starts = sorted([_hhmm_to_minutes(a) for a, _ in AUTO_WINDOWS])
+    for s in starts:
+        if s > mins_now:
+            return fmt_12h_from_minutes(s).replace("AM", " AM").replace("PM", " PM")
+    return fmt_12h_from_minutes(starts[0]).replace("AM", " AM").replace("PM", " PM")
+
+def calc_current_1m_period(now: datetime) -> str:
+    date_str = now.strftime("%Y%m%d")
+    total_slots = (now.hour * 60) + now.minute + 1
+    return f"{date_str}01{total_slots:04d}"
+
+# =========================
 # PASSWORD
 # =========================
 def fetch_password_a1() -> str:
@@ -194,150 +180,7 @@ async def get_live_password() -> str:
     return await asyncio.to_thread(fetch_password_a1)
 
 # =========================
-# PREDICTION ENGINE (YOUR MATRIX)
-# =========================
-class PredictionEngine:
-    def __init__(self):
-        self.history: List[str] = []
-        self.raw_history: List[dict] = []
-        self.last_prediction: Optional[str] = None
-
-    def update_history(self, issue_data: dict):
-        try:
-            number = int(issue_data["number"])
-            result_type = "BIG" if number >= 5 else "SMALL"
-        except Exception:
-            return
-
-        if (not self.raw_history) or (self.raw_history[0].get("issueNumber") != issue_data.get("issueNumber")):
-            self.history.insert(0, result_type)
-            self.raw_history.insert(0, issue_data)
-            self.history = self.history[:120]
-            self.raw_history = self.raw_history[:120]
-
-    def calc_confidence(self, streak_loss):
-        base = random.randint(94, 99)
-        return max(40, base - (streak_loss * 7))
-
-    def get_pattern_signal(self, current_streak_loss):
-        if len(self.history) < 5:
-            return random.choice(["BIG", "SMALL"])
-
-        h = self.history
-        last = h[0]
-        prev1 = h[1]
-        prev2 = h[2]
-
-        prediction = None
-
-        # PHASE 1
-        if last == prev1 == prev2:
-            prediction = last
-        elif last != prev1 and prev1 != prev2:
-            prediction = "SMALL" if last == "BIG" else "BIG"
-        elif prev1 == prev2 and last != prev1:
-            prediction = last
-        else:
-            prediction = last
-
-        # PHASE 2
-        if 2 <= current_streak_loss <= 3:
-            prediction = "SMALL" if prediction == "BIG" else "BIG"
-
-        # PHASE 3
-        if current_streak_loss >= 4:
-            prediction = last
-
-        self.last_prediction = prediction
-        return prediction
-
-# =========================
-# TIMER (rotating clock)
-# =========================
-CLOCK_FRAMES = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚"]
-
-async def run_checking_timer(bot, chat_id: int, msg_id: int, issue: str):
-    i = 0
-    try:
-        while state.running and state.active and (state.active.predicted_issue == issue):
-            clock = CLOCK_FRAMES[i % len(CLOCK_FRAMES)]
-            i += 1
-            try:
-                await bot.edit_message_text(
-                    chat_id=chat_id,
-                    message_id=msg_id,
-                    text=f"{clock} <b>RESULT CHECKING...</b>\n🧾 <b>PERIOD:</b> <code>{issue}</code>\n🕒 <b>{now_bd_str()}</b>",
-                    parse_mode=ParseMode.HTML,
-                )
-            except Exception:
-                break
-            await asyncio.sleep(2.0)
-    except asyncio.CancelledError:
-        return
-
-# =========================
-# STATE
-# =========================
-@dataclass
-class ActiveBet:
-    predicted_issue: str
-    pick: str
-    checking_msg_ids: Dict[int, int] = field(default_factory=dict)
-    timer_tasks: Dict[int, asyncio.Task] = field(default_factory=dict)
-
-@dataclass
-class BotState:
-    # session
-    running: bool = False
-    session_id: int = 0
-    engine: PredictionEngine = field(default_factory=PredictionEngine)
-    active: Optional[ActiveBet] = None
-    last_signal_issue: Optional[str] = None
-
-    # stats
-    wins: int = 0
-    losses: int = 0
-    streak_win: int = 0
-    streak_loss: int = 0
-    max_win_streak: int = 0
-    max_loss_streak: int = 0
-
-    # lock
-    unlocked: bool = False
-    expected_password: str = PASSWORD_FALLBACK
-
-    # menu system
-    menu_mode: str = "CHOOSE_CHANNEL"  # CHOOSE_CHANNEL | CHANNEL_PANEL
-    active_target: int = TARGETS["MAIN_GROUP"]  # current channel in control
-
-    # settings per "current target" (simple single set, applies to active target)
-    auto_schedule_enabled: bool = True
-    started_by_schedule: bool = False
-    custom_window: Optional[Tuple[int, int]] = None
-    stop_after_wins: int = 40
-
-    # input modes
-    waiting_for: Optional[str] = None  # None | TIME | WINS | SENDMSG
-
-    # send-message queue
-    queued_messages: List[str] = field(default_factory=list)
-
-    # stop
-    graceful_stop_requested: bool = False
-    stop_event: asyncio.Event = field(default_factory=asyncio.Event)
-
-state = BotState()
-
-def reset_stats():
-    state.wins = 0
-    state.losses = 0
-    state.streak_win = 0
-    state.streak_loss = 0
-    state.max_win_streak = 0
-    state.max_loss_streak = 0
-
-# =========================
-# FETCH
+# FETCH API
 # =========================
 def _fetch_latest_issue_sync() -> Optional[dict]:
     payload = {
@@ -369,135 +212,143 @@ async def fetch_latest_issue() -> Optional[dict]:
     return await asyncio.to_thread(_fetch_latest_issue_sync)
 
 # =========================
-# INPUT PARSERS
+# PREDICTION ENGINE (YOUR LOGIC)
 # =========================
-def parse_time_12h_token(t: str) -> Optional[int]:
-    s = t.strip().upper().replace(" ", "")
-    try:
-        dt = datetime.strptime(s, "%I:%M%p")
-        return dt.hour * 60 + dt.minute
-    except Exception:
-        return None
+class PredictionEngine:
+    def __init__(self):
+        self.history: List[str] = []
+        self.raw_history: List[dict] = []
+        self.last_prediction: Optional[str] = None
 
-def parse_time_range(text: str) -> Optional[Tuple[int, int]]:
-    s = text.strip().replace("—", "-").replace("–", "-")
-    if "-" not in s:
-        return None
-    a, b = s.split("-", 1)
-    start = parse_time_12h_token(a)
-    end = parse_time_12h_token(b)
-    if start is None or end is None:
-        return None
-    if end <= start:
-        return None
-    return (start, end)
-
-# =========================
-# BROADCAST HELPERS
-# =========================
-async def safe_delete(bot, chat_id: int, msg_id: int):
-    try:
-        await bot.delete_message(chat_id=chat_id, message_id=msg_id)
-    except Exception:
-        pass
-
-async def send_to_target(bot, text: str, target_id: int):
-    """
-    ✅ No parse_mode by default so user message (emoji/custom) stays as-is.
-    """
-    try:
-        await bot.send_message(
-            target_id,
-            text,
-            disable_web_page_preview=False,
-        )
-    except Exception:
-        # fallback with HTML disabled preview
+    def update_history(self, issue_data: dict):
         try:
-            await bot.send_message(target_id, text, disable_web_page_preview=True)
+            number = int(issue_data["number"])
+            result_type = "BIG" if number >= 5 else "SMALL"
         except Exception:
-            pass
+            return
 
-async def broadcast_message(bot, text: str):
-    await send_to_target(bot, text, state.active_target)
+        if (not self.raw_history) or (self.raw_history[0].get("issueNumber") != issue_data.get("issueNumber")):
+            self.history.insert(0, result_type)
+            self.raw_history.insert(0, issue_data)
+            self.history = self.history[:120]
+            self.raw_history = self.raw_history[:120]
 
-async def broadcast_sticker(bot, sticker_id: str):
-    try:
-        await bot.send_sticker(state.active_target, sticker_id)
-    except Exception:
-        pass
+    def calc_confidence(self, streak_loss):
+        base = random.randint(95, 99)
+        return max(60, base - (streak_loss * 5))
 
-# =========================
-# PREMIUM SIGNAL MESSAGES
-# =========================
-def pick_badge(pick: str) -> str:
-    return "🟢 <b>BIG</b>" if pick == "BIG" else "🔴 <b>SMALL</b>"
+    def get_pattern_signal(self, current_streak_loss):
+        if len(self.history) < 3:
+            return self.history[0] if self.history else random.choice(["BIG", "SMALL"])
 
-def format_signal(issue: str, pick: str, conf: int) -> str:
-    return (
-        f"{BRAND_NAME}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🧾 PERIOD: {issue}\n"
-        f"🎯 ENTRY: {'BIG' if pick=='BIG' else 'SMALL'}\n"
-        f"✨ CONFIDENCE: {conf}%\n"
-        f"🧠 RECOVERY: {state.streak_loss}/{MAX_RECOVERY_STEPS}\n"
-        f"🕒 TIME: {now_bd_str()}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔗 Open Account: {REG_LINK}\n"
-        f"📣 VIP: {CHANNEL_LINK}\n"
-        f"👤 Owner: {OWNER_USERNAME}"
-    )
+        last = self.history[0]
+        prev1 = self.history[1]
+        prev2 = self.history[2]
 
-def format_result(issue: str, res_num: str, res_type: str, pick: str, is_win: bool) -> str:
-    head = "✅ WIN CONFIRMED" if is_win else "❌ LOSS CONFIRMED"
-    return (
-        f"{head}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"🧾 PERIOD: {issue}\n"
-        f"🎰 RESULT: {res_num} ({res_type})\n"
-        f"🎯 YOUR PICK: {pick}\n"
-        f"📊 W: {state.wins} | L: {state.losses}\n"
-        f"🕒 {now_bd_str()}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"📣 VIP: {CHANNEL_LINK}"
-    )
+        # RULE 1: LOSS RESET
+        if current_streak_loss > 0:
+            return last
 
-def format_summary() -> str:
-    total = state.wins + state.losses
-    wr = (state.wins / total * 100) if total else 0.0
-    return (
-        "🛑 SESSION SUMMARY\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"📦 TOTAL: {total}\n"
-        f"✅ WIN: {state.wins}\n"
-        f"❌ LOSS: {state.losses}\n"
-        f"🎯 WIN RATE: {wr:.1f}%\n"
-        f"🔥 MAX WIN STREAK: {state.max_win_streak}\n"
-        f"🧊 MAX LOSS STREAK: {state.max_loss_streak}\n"
-        f"🕒 CLOSED: {now_bd_str()}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 OWNER: {OWNER_USERNAME}"
-    )
+        # RULE 2: ZIGZAG
+        is_zigzag = (last != prev1 and prev1 != prev2)
+        if is_zigzag:
+            return "SMALL" if last == "BIG" else "BIG"
 
-def after_close_review_message(next_time_12h: str) -> str:
-    return (
-        "⏺সিগন্যাল কেমন হলো? অবশ্যই এখানে রিভিউ দিবেন 💋\n\n"
-        f"{OWNER_USERNAME}  ❤️\n\n"
-        f"এবং পরবর্তী সিগন্যাল হবে {next_time_12h} ⏰🔥\n\n"
-        f"{REG_LINK}\n\n"
-        "অ্যাকাউন্ট খুলে ইনবক্সে ইউআইডি দিন। এবং মিনিমাম 300 টাকা ডিপোজিট করে "
-        "বট সিগন্যাল উপভোগ করুন এবং আনলিমিটেড হ্যাক নিন 🌟✅\n\n"
-        f"{OWNER_USERNAME} ❤️"
-    )
+        # RULE 3: DEFAULT TREND
+        return last
 
 # =========================
-# MENUS
+# TIMER (checking spinner)
+# =========================
+CLOCK_FRAMES = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚"]
+
+async def run_checking_timer(bot, chat_id: int, msg_id: int, issue: str):
+    i = 0
+    while state.running and state.active and (state.active.predicted_issue == issue):
+        clock = CLOCK_FRAMES[i % len(CLOCK_FRAMES)]
+        i += 1
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=msg_id,
+                text=f"{clock} <b>RESULT CHECKING...</b>\n🧾 <b>PERIOD:</b> <code>{issue}</code>\n🕒 <b>{now_bd_str()}</b>",
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception:
+            break
+        await asyncio.sleep(2.0)
+
+# =========================
+# STATE
+# =========================
+@dataclass
+class ActiveBet:
+    predicted_issue: str
+    pick: str
+    checking_msg_id: Optional[int] = None
+    timer_task: Optional[asyncio.Task] = None
+
+@dataclass
+class BotState:
+    unlocked: bool = False
+    expected_password: str = PASSWORD_FALLBACK
+
+    # panel single message
+    admin_chat_id: Optional[int] = None
+    panel_message_id: Optional[int] = None
+
+    menu_mode: str = "CHOOSE_CHANNEL"  # CHOOSE_CHANNEL | CHANNEL_PANEL
+    waiting_for: Optional[str] = None  # TIME | WINS | SENDMSG
+
+    # selected channel to control
+    active_target: int = TARGETS["MAIN_GROUP"]
+
+    # session
+    running: bool = False
+    session_id: int = 0
+    engine: PredictionEngine = field(default_factory=PredictionEngine)
+    active: Optional[ActiveBet] = None
+    last_signal_issue: Optional[str] = None
+
+    # schedule / win target
+    auto_schedule_enabled: bool = True
+    custom_window: Optional[Tuple[int, int]] = None
+    stop_after_wins: int = 40
+    started_by_schedule: bool = False
+    graceful_stop_requested: bool = False
+
+    # stats
+    wins: int = 0
+    losses: int = 0
+    streak_win: int = 0
+    streak_loss: int = 0
+    max_win_streak: int = 0
+    max_loss_streak: int = 0
+
+    # stop
+    stop_event: asyncio.Event = field(default_factory=asyncio.Event)
+
+    # queued send message (after session end)
+    queued_messages: List[str] = field(default_factory=list)
+
+state = BotState()
+
+def reset_stats():
+    state.wins = 0
+    state.losses = 0
+    state.streak_win = 0
+    state.streak_loss = 0
+    state.max_win_streak = 0
+    state.max_loss_streak = 0
+
+# =========================
+# UI TEXT
 # =========================
 def channel_selector_text() -> str:
     return (
         "📌 <b>CHOOSE CHANNEL</b>\n"
         "যেই গ্রুপ/চ্যানেলে চালাতে চাও সেটায় ক্লিক করো ✅\n\n"
-        "⚠️ এরপর যে মেনু আসবে—সেগুলো শুধু ওই চ্যানেলের জন্য কাজ করবে।"
+        "⚠️ এরপর সব কন্ট্রোল শুধু ওই চ্যানেলের জন্য কাজ করবে।"
     )
 
 def channel_selector_markup() -> InlineKeyboardMarkup:
@@ -507,18 +358,30 @@ def channel_selector_markup() -> InlineKeyboardMarkup:
          InlineKeyboardButton("✅ PUBLIC", callback_data=f"CHSEL:{TARGETS['PUBLIC']}")],
     ])
 
-def channel_panel_text() -> str:
-    target_name = [k for k,v in TARGETS.items() if v == state.active_target]
-    target_name = target_name[0] if target_name else "TARGET"
+def channel_name(chat_id: int) -> str:
+    for k, v in TARGETS.items():
+        if v == chat_id:
+            return k
+    return str(chat_id)
 
+def panel_text() -> str:
+    running = "🟢 RUNNING" if state.running else "🔴 STOPPED"
     custom = (
         f"{fmt_12h_from_minutes(state.custom_window[0])}-{fmt_12h_from_minutes(state.custom_window[1])}"
         if state.custom_window else "Not Set"
     )
 
-    running = "🟢 RUNNING" if state.running else "🔴 STOPPED"
+    # input hints (same panel message, no extra message)
+    hint = ""
+    if state.waiting_for == "TIME":
+        hint = "\n\n🕒 এখন টাইম লিখো এভাবে:\n<b>10:00PM-10:30PM</b>"
+    elif state.waiting_for == "WINS":
+        hint = "\n\n🏆 এখন সংখ্যা লিখো (উদাহরণ: <b>40</b>)"
+    elif state.waiting_for == "SENDMSG":
+        hint = "\n\n📨 এখন তোমার মেসেজ লিখো (সেশন চললে END এর পরে যাবে)"
+
     return (
-        f"🎛 <b>{target_name} CONTROL PANEL</b>\n"
+        f"🎛 <b>{channel_name(state.active_target)} CONTROL PANEL</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"📡 Status: <b>{running}</b>\n"
         f"⏰ Auto: <b>{'ON' if state.auto_schedule_enabled else 'OFF'}</b>\n"
@@ -529,9 +392,10 @@ def channel_panel_text() -> str:
         f"🔥 Streak: W <b>{state.streak_win}</b> | L <b>{state.streak_loss}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"👤 {OWNER_USERNAME}"
+        f"{hint}"
     )
 
-def channel_panel_markup() -> InlineKeyboardMarkup:
+def panel_markup() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🕒 Select Time", callback_data="SET_TIME"),
          InlineKeyboardButton("🏆 Select Win", callback_data="SET_WINS")],
@@ -544,6 +408,135 @@ def channel_panel_markup() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("⬅️ Back", callback_data="BACK_CHANNELS")],
     ])
 
+def signal_text(issue: str, pick: str, conf: int) -> str:
+    entry = "BIG" if pick == "BIG" else "SMALL"
+    return (
+        f"{BRAND_NAME}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🧾 PERIOD: <code>{issue}</code>\n"
+        f"🎯 ENTRY: <b>{entry}</b>\n"
+        f"✨ CONFIDENCE: <b>{conf}%</b>\n"
+        f"🧠 RECOVERY: <b>{state.streak_loss}/{MAX_RECOVERY_STEPS}</b>\n"
+        f"🕒 TIME: <b>{now_bd_str()}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔗 Open Account: {REG_LINK}\n"
+        f"📣 VIP: {CHANNEL_LINK}\n"
+        f"👤 Owner: {OWNER_USERNAME}"
+    )
+
+def result_text(issue: str, res_num: str, res_type: str, pick: str, is_win: bool) -> str:
+    head = "✅ <b>WIN CONFIRMED</b>" if is_win else "❌ <b>LOSS CONFIRMED</b>"
+    return (
+        f"{head}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🧾 PERIOD: <code>{issue}</code>\n"
+        f"🎰 RESULT: <b>{res_num} ({res_type})</b>\n"
+        f"🎯 YOUR PICK: <b>{pick}</b>\n"
+        f"📊 W: <b>{state.wins}</b> | L: <b>{state.losses}</b>\n"
+        f"🕒 <b>{now_bd_str()}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📣 VIP: {CHANNEL_LINK}"
+    )
+
+def summary_text() -> str:
+    total = state.wins + state.losses
+    wr = (state.wins / total * 100) if total else 0.0
+    return (
+        "🛑 <b>SESSION SUMMARY</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"📦 TOTAL: <b>{total}</b>\n"
+        f"✅ WIN: <b>{state.wins}</b>\n"
+        f"❌ LOSS: <b>{state.losses}</b>\n"
+        f"🎯 WIN RATE: <b>{wr:.1f}%</b>\n"
+        f"🔥 MAX WIN STREAK: <b>{state.max_win_streak}</b>\n"
+        f"🧊 MAX LOSS STREAK: <b>{state.max_loss_streak}</b>\n"
+        f"🕒 CLOSED: <b>{now_bd_str()}</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 OWNER: {OWNER_USERNAME}"
+    )
+
+def after_close_review_message(next_time_12h: str) -> str:
+    return (
+        "⏺সিগন্যাল কেমন হলো? অবশ্যই এখানে রিভিউ দিবেন 💋\n\n"
+        f"{OWNER_USERNAME} ❤️\n\n"
+        f"এবং পরবর্তী সিগন্যাল হবে {next_time_12h} ⏰🔥\n\n"
+        f"{REG_LINK}\n\n"
+        "অ্যাকাউন্ট খুলে ইনবক্সে ইউআইডি দিন। এবং মিনিমাম 300 টাকা ডিপোজিট করে "
+        "বট সিগন্যাল উপভোগ করুন এবং আনলিমিটেড হ্যাক নিন 🌟✅\n\n"
+        f"{OWNER_USERNAME} ❤️"
+    )
+
+# =========================
+# SINGLE PANEL MESSAGE MANAGER (NO DOUBLE)
+# =========================
+async def render_panel(bot):
+    if not state.admin_chat_id:
+        return
+    try:
+        if state.menu_mode == "CHOOSE_CHANNEL":
+            text = channel_selector_text()
+            markup = channel_selector_markup()
+        else:
+            text = panel_text()
+            markup = panel_markup()
+
+        if state.panel_message_id:
+            # only edit (no fallback send => no double)
+            await bot.edit_message_text(
+                chat_id=state.admin_chat_id,
+                message_id=state.panel_message_id,
+                text=text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=markup,
+                disable_web_page_preview=True,
+            )
+        else:
+            m = await bot.send_message(
+                state.admin_chat_id,
+                text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=markup,
+                disable_web_page_preview=True,
+            )
+            state.panel_message_id = m.message_id
+    except Exception:
+        # if edit fails (deleted/too old), recreate single message and overwrite id
+        try:
+            m = await bot.send_message(
+                state.admin_chat_id,
+                text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=markup,
+                disable_web_page_preview=True,
+            )
+            state.panel_message_id = m.message_id
+        except Exception:
+            pass
+
+# =========================
+# BROADCAST HELPERS (signals to group)
+# =========================
+async def safe_delete(bot, chat_id: int, msg_id: int):
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+    except Exception:
+        pass
+
+async def send_to_target(bot, text: str, parse_html: bool = False):
+    try:
+        if parse_html:
+            await bot.send_message(state.active_target, text, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+        else:
+            await bot.send_message(state.active_target, text, disable_web_page_preview=True)
+    except Exception:
+        pass
+
+async def send_sticker_target(bot, sticker_id: str):
+    try:
+        await bot.send_sticker(state.active_target, sticker_id)
+    except Exception:
+        pass
+
 # =========================
 # SESSION CONTROL
 # =========================
@@ -553,59 +546,57 @@ async def flush_queued_messages(bot):
     msgs = state.queued_messages[:]
     state.queued_messages.clear()
     for m in msgs:
-        await send_to_target(bot, m, state.active_target)
+        # user message as-is (no HTML)
+        await send_to_target(bot, m, parse_html=False)
         await asyncio.sleep(0.7)
+
+async def start_session(bot, started_by_schedule: bool):
+    state.session_id += 1
+    state.running = True
+    state.stop_event.clear()
+    state.engine = PredictionEngine()
+    state.active = None
+    state.last_signal_issue = None
+    state.started_by_schedule = started_by_schedule
+    state.graceful_stop_requested = False
+
+    reset_stats()
+
+    # session start sticker in target group
+    await send_sticker_target(bot, STICKERS["SESSION_START"])
 
 async def stop_session(bot, reason: str = "manual"):
     state.session_id += 1
     state.running = False
     state.stop_event.set()
 
-    # stop timers + delete checking
+    # stop checking timer + delete checking message
     if state.active:
-        for _, task in (state.active.timer_tasks or {}).items():
+        if state.active.timer_task:
             try:
-                task.cancel()
+                state.active.timer_task.cancel()
             except Exception:
                 pass
-        for cid, mid in (state.active.checking_msg_ids or {}).items():
-            await safe_delete(bot, cid, mid)
+        if state.active.checking_msg_id:
+            await safe_delete(bot, state.active_target, state.active.checking_msg_id)
 
-    # summary
-    try:
-        await bot.send_message(state.active_target, format_summary(), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
-    except Exception:
-        await send_to_target(bot, format_summary(), state.active_target)
+    # summary message + close sticker
+    await send_to_target(bot, summary_text(), parse_html=True)
+    await send_sticker_target(bot, STICKERS["SESSION_CLOSE"])
 
-    # close sticker
-    await broadcast_sticker(bot, STICKERS["SESSION_CLOSE"])
-
-    # ✅ send queued messages AFTER session end
+    # queued messages (after session)
     await flush_queued_messages(bot)
 
-    # next signal info
+    # next signal info message (after close only)
     nxt = next_window_start(now_bd(), state.custom_window)
-    await send_to_target(bot, after_close_review_message(nxt), state.active_target)
+    await send_to_target(bot, after_close_review_message(nxt), parse_html=False)
 
     state.active = None
-    state.graceful_stop_requested = False
     state.started_by_schedule = False
-
-async def start_session(bot, started_by_schedule: bool):
-    state.session_id += 1
-    state.running = True
-    state.stop_event.clear()
     state.graceful_stop_requested = False
-    state.engine = PredictionEngine()
-    state.active = None
-    state.last_signal_issue = None
-    state.started_by_schedule = started_by_schedule
-    reset_stats()
-
-    await broadcast_sticker(bot, STICKERS["SESSION_START"])
 
 # =========================
-# ENGINE LOOP
+# ENGINE LOOP (FIXED SIGNAL ORDER)
 # =========================
 async def engine_loop(app: Application, my_session: int):
     bot = app.bot
@@ -633,46 +624,52 @@ async def engine_loop(app: Application, my_session: int):
                 pick = state.active.pick
                 is_win = (pick == latest_type)
 
-                # stop timers + delete checking
-                for _, task in (state.active.timer_tasks or {}).items():
+                # delete checking + stop timer
+                if state.active.timer_task:
                     try:
-                        task.cancel()
+                        state.active.timer_task.cancel()
                     except Exception:
                         pass
-                for cid, mid in (state.active.checking_msg_ids or {}).items():
-                    await safe_delete(bot, cid, mid)
+                if state.active.checking_msg_id:
+                    await safe_delete(bot, state.active_target, state.active.checking_msg_id)
 
+                # stats update
                 if is_win:
                     state.wins += 1
                     state.streak_win += 1
                     state.streak_loss = 0
                     state.max_win_streak = max(state.max_win_streak, state.streak_win)
 
-                    await broadcast_sticker(bot, STICKERS["WIN_ALWAYS"])
+                    # 4) WIN stickers
+                    await send_sticker_target(bot, STICKERS["WIN_ALWAYS"])
                     if state.streak_win in STICKERS["SUPER_WIN"]:
-                        await broadcast_sticker(bot, STICKERS["SUPER_WIN"][state.streak_win])
+                        await send_sticker_target(bot, STICKERS["SUPER_WIN"][state.streak_win])
                     else:
-                        await broadcast_sticker(bot, random.choice(STICKERS["WIN_POOL"]))
-                    await broadcast_sticker(bot, STICKERS["WIN_BIG"] if latest_type == "BIG" else STICKERS["WIN_SMALL"])
-                    await broadcast_sticker(bot, STICKERS["WIN_ANY"])
-                    await broadcast_sticker(bot, STICKERS["WIN_EXTRA"])
+                        await send_sticker_target(bot, random.choice(STICKERS["WIN_POOL"]))
+                    await send_sticker_target(bot, STICKERS["WIN_BIG"] if latest_type == "BIG" else STICKERS["WIN_SMALL"])
+                    await send_sticker_target(bot, STICKERS["WIN_ANY"])
+                    await send_sticker_target(bot, STICKERS["WIN_EXTRA"])
                 else:
                     state.losses += 1
                     state.streak_loss += 1
                     state.streak_win = 0
                     state.max_loss_streak = max(state.max_loss_streak, state.streak_loss)
-                    await broadcast_sticker(bot, STICKERS["LOSS"])
 
-                await send_to_target(bot, format_result(latest_issue, latest_num, latest_type, pick, is_win), state.active_target)
+                    # 4) LOSS sticker
+                    await send_sticker_target(bot, STICKERS["LOSS"])
+
+                # 5) result message
+                await send_to_target(bot, result_text(latest_issue, latest_num, latest_type, pick, is_win), parse_html=True)
 
                 state.active = None
                 resolved_this_tick = True
 
-                # ✅ stop after wins target
+                # stop after wins
                 if state.wins >= state.stop_after_wins:
                     await stop_session(bot, reason="win_target_reached")
                     break
 
+                # graceful stop after next win
                 if state.graceful_stop_requested and is_win:
                     await stop_session(bot, reason="graceful_done")
                     break
@@ -681,41 +678,43 @@ async def engine_loop(app: Application, my_session: int):
         if (not state.active) and is_safe_time and (not resolved_this_tick):
             if state.last_signal_issue != current_period:
                 if state.streak_loss >= MAX_RECOVERY_STEPS:
-                    await send_to_target(bot, "🧊 SAFETY STOP\nRecovery limit reached.", state.active_target)
+                    await send_to_target(bot, "🧊 <b>SAFETY STOP</b>\n<i>Recovery limit reached.</i>", parse_html=True)
                     await stop_session(bot, reason="max_steps")
                     break
 
                 pred = state.engine.get_pattern_signal(state.streak_loss)
                 conf = state.engine.calc_confidence(state.streak_loss)
 
-                await broadcast_sticker(bot, STICKERS["PRED_BIG"] if pred == "BIG" else STICKERS["PRED_SMALL"])
-                await send_to_target(bot, format_signal(current_period, pred, conf), state.active_target)
+                # 1) signal sticker
+                await send_sticker_target(bot, STICKERS["PRED_BIG"] if pred == "BIG" else STICKERS["PRED_SMALL"])
 
-                checking_ids = {}
-                timer_tasks = {}
+                # 2) signal message
+                await send_to_target(bot, signal_text(current_period, pred, conf), parse_html=True)
+
+                # 3) checking message (and timer edit)
+                checking_mid = None
                 try:
                     m = await bot.send_message(
                         state.active_target,
                         f"🕛 <b>RESULT CHECKING...</b>\n🧾 <b>PERIOD:</b> <code>{current_period}</code>\n🕒 <b>{now_bd_str()}</b>",
-                        parse_mode=ParseMode.HTML
+                        parse_mode=ParseMode.HTML,
+                        disable_web_page_preview=True,
                     )
-                    checking_ids[state.active_target] = m.message_id
-                    timer_tasks[state.active_target] = asyncio.create_task(run_checking_timer(bot, state.active_target, m.message_id, current_period))
+                    checking_mid = m.message_id
                 except Exception:
                     pass
 
-                state.active = ActiveBet(
-                    predicted_issue=current_period,
-                    pick=pred,
-                    checking_msg_ids=checking_ids,
-                    timer_tasks=timer_tasks
-                )
+                bet = ActiveBet(predicted_issue=current_period, pick=pred, checking_msg_id=checking_mid)
+                if checking_mid:
+                    bet.timer_task = asyncio.create_task(run_checking_timer(bot, state.active_target, checking_mid, current_period))
+
+                state.active = bet
                 state.last_signal_issue = current_period
 
         await asyncio.sleep(0.6)
 
 # =========================
-# AUTO SCHEDULER LOOP
+# AUTO SCHEDULER
 # =========================
 async def scheduler_loop(app: Application):
     while True:
@@ -735,180 +734,153 @@ async def scheduler_loop(app: Application):
         await asyncio.sleep(10)
 
 # =========================
+# INPUT PARSERS
+# =========================
+def parse_time_12h_token(t: str) -> Optional[int]:
+    s = t.strip().upper().replace(" ", "")
+    try:
+        dt = datetime.strptime(s, "%I:%M%p")
+        return dt.hour * 60 + dt.minute
+    except Exception:
+        return None
+
+def parse_time_range(text: str) -> Optional[Tuple[int, int]]:
+    s = text.strip().replace("—", "-").replace("–", "-")
+    if "-" not in s:
+        return None
+    a, b = s.split("-", 1)
+    start = parse_time_12h_token(a)
+    end = parse_time_12h_token(b)
+    if start is None or end is None:
+        return None
+    if end <= start:
+        return None
+    return (start, end)
+
+# =========================
 # COMMANDS
 # =========================
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     state.expected_password = await get_live_password()
     state.unlocked = False
     state.waiting_for = None
+    state.admin_chat_id = update.effective_chat.id
     state.menu_mode = "CHOOSE_CHANNEL"
     await update.message.reply_text("🔒 <b>SYSTEM LOCKED</b>\n✅ Password দিন:", parse_mode=ParseMode.HTML)
 
 async def cmd_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    state.admin_chat_id = update.effective_chat.id
     if not state.unlocked:
         await update.message.reply_text("🔒 <b>LOCKED</b>\n/start দিয়ে unlock করো।", parse_mode=ParseMode.HTML)
         return
-
-    # show channel selector always
-    state.menu_mode = "CHOOSE_CHANNEL"
-    await update.message.reply_text(channel_selector_text(), parse_mode=ParseMode.HTML, reply_markup=channel_selector_markup())
+    await render_panel(context.bot)
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     txt = (update.message.text or "").strip()
+    state.admin_chat_id = update.effective_chat.id
 
-    # 1) Unlock flow
+    # unlock
     if not state.unlocked:
         state.expected_password = await get_live_password()
         if txt == state.expected_password:
             state.unlocked = True
             state.waiting_for = None
             state.menu_mode = "CHOOSE_CHANNEL"
-            await update.message.reply_text("✅ <b>UNLOCKED</b>\nএখন চ্যানেল সিলেক্ট করো ✅", parse_mode=ParseMode.HTML)
-            await update.message.reply_text(channel_selector_text(), parse_mode=ParseMode.HTML, reply_markup=channel_selector_markup())
+            await update.message.reply_text("✅ <b>UNLOCKED</b>", parse_mode=ParseMode.HTML)
+            await render_panel(context.bot)
         else:
             await update.message.reply_text("❌ <b>WRONG PASSWORD</b>", parse_mode=ParseMode.HTML)
         return
 
-    # 2) Waiting inputs (per menu)
+    # inputs (no extra prompt messages)
     if state.waiting_for == "TIME":
         rng = parse_time_range(txt)
         if not rng:
-            await update.message.reply_text("❌ ফরম্যাট ভুল!\n✅ এভাবে দিন: <b>10:00PM-10:30PM</b>", parse_mode=ParseMode.HTML)
+            # keep waiting, just refresh panel hint
+            await render_panel(context.bot)
             return
         state.custom_window = rng
         state.waiting_for = None
-        await update.message.reply_text(
-            f"✅ <b>TIME SET</b> → <b>{fmt_12h_from_minutes(rng[0])}-{fmt_12h_from_minutes(rng[1])}</b>",
-            parse_mode=ParseMode.HTML
-        )
-        await update.message.reply_text(channel_panel_text(), parse_mode=ParseMode.HTML, reply_markup=channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if state.waiting_for == "WINS":
         if not txt.isdigit():
-            await update.message.reply_text("❌ শুধু সংখ্যা দিন! উদাহরণ: <b>40</b>", parse_mode=ParseMode.HTML)
+            await render_panel(context.bot)
             return
         n = int(txt)
         if n < 1 or n > 200:
-            await update.message.reply_text("❌ 1 থেকে 200 এর মধ্যে দিন!", parse_mode=ParseMode.HTML)
+            await render_panel(context.bot)
             return
         state.stop_after_wins = n
         state.waiting_for = None
-        await update.message.reply_text(f"✅ <b>WIN TARGET SET</b> → <b>{n}</b>", parse_mode=ParseMode.HTML)
-        await update.message.reply_text(channel_panel_text(), parse_mode=ParseMode.HTML, reply_markup=channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if state.waiting_for == "SENDMSG":
-        # ✅ queue if running, else send instantly
         state.waiting_for = None
         if state.running:
             state.queued_messages.append(txt)
-            await update.message.reply_text("✅ OK! সেশন শেষ হলে মেসেজটা অটো পাঠানো হবে ✅", parse_mode=ParseMode.HTML)
         else:
-            await send_to_target(context.bot, txt, state.active_target)
-            await update.message.reply_text("✅ OK! মেসেজ পাঠানো হয়েছে ✅", parse_mode=ParseMode.HTML)
-
-        await update.message.reply_text(channel_panel_text(), parse_mode=ParseMode.HTML, reply_markup=channel_panel_markup())
+            await send_to_target(context.bot, txt, parse_html=False)
+        await render_panel(context.bot)
         return
 
+    # no waiting -> ignore normal text
+
 # =========================
-# CALLBACKS (ALWAYS RESPONDS)
+# CALLBACKS (NO DOUBLE MESSAGES)
 # =========================
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     data = (q.data or "").strip()
 
-    # instant ack
     try:
-        await q.answer("✅ OK", cache_time=0)
+        await q.answer("✅", cache_time=0)
     except Exception:
         pass
 
-    async def safe_edit(text: str, markup: InlineKeyboardMarkup):
-        try:
-            await q.edit_message_text(text, parse_mode=ParseMode.HTML, reply_markup=markup)
-        except Exception:
-            # fallback send new
-            try:
-                await context.bot.send_message(update.effective_chat.id, text, parse_mode=ParseMode.HTML, reply_markup=markup)
-            except Exception:
-                pass
-
     if not state.unlocked:
-        try:
-            await q.answer("🔒 LOCKED", show_alert=True, cache_time=0)
-        except Exception:
-            pass
         return
 
-    # --- Channel select screen ---
     if data.startswith("CHSEL:"):
         try:
-            target = int(data.split(":")[1])
-            state.active_target = target
+            state.active_target = int(data.split(":")[1])
             state.menu_mode = "CHANNEL_PANEL"
             state.waiting_for = None
         except Exception:
             pass
-        await safe_edit(channel_panel_text(), channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if data == "BACK_CHANNELS":
         state.menu_mode = "CHOOSE_CHANNEL"
         state.waiting_for = None
-        await safe_edit(channel_selector_text(), channel_selector_markup())
+        await render_panel(context.bot)
         return
 
-    # --- Channel panel buttons ---
     if data == "REFRESH_PANEL":
-        await safe_edit(channel_panel_text(), channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if data == "TOGGLE_AUTO":
         state.auto_schedule_enabled = not state.auto_schedule_enabled
-        await safe_edit(channel_panel_text(), channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if data == "SET_TIME":
         state.waiting_for = "TIME"
-        # prompt message (always new message)
-        try:
-            await context.bot.send_message(
-                update.effective_chat.id,
-                "🕒 <b>SELECT TIME</b>\nএই মেসেজে রিপ্লাই দাও:\n<b>10:00PM-10:30PM</b>\n\n✅ Example:\n<code>06:00PM-06:30PM</code>",
-                parse_mode=ParseMode.HTML
-            )
-        except Exception:
-            pass
-        await safe_edit(channel_panel_text(), channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if data == "SET_WINS":
         state.waiting_for = "WINS"
-        try:
-            await context.bot.send_message(
-                update.effective_chat.id,
-                "🏆 <b>SELECT WIN TARGET</b>\nএই মেসেজে শুধু সংখ্যা লিখে রিপ্লাই দাও:\nExample: <b>40</b>",
-                parse_mode=ParseMode.HTML
-            )
-        except Exception:
-            pass
-        await safe_edit(channel_panel_text(), channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if data == "SENDMSG":
         state.waiting_for = "SENDMSG"
-        try:
-            await context.bot.send_message(
-                update.effective_chat.id,
-                "📨 <b>SEND MESSAGE</b>\nএই মেসেজে রিপ্লাই দিয়ে তোমার মেসেজ লিখো।\n\n"
-                "✅ যদি সেশন চলতে থাকে → সেশন শেষ হলে যাবে\n"
-                "✅ সেশন না চললে → সাথে সাথে যাবে",
-                parse_mode=ParseMode.HTML
-            )
-        except Exception:
-            pass
-        await safe_edit(channel_panel_text(), channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if data == "START:1M":
@@ -916,21 +888,19 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await stop_session(context.bot, reason="restart_manual")
         await start_session(context.bot, started_by_schedule=False)
         context.application.create_task(engine_loop(context.application, state.session_id))
-        await safe_edit(channel_panel_text(), channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if data == "STOP:FORCE":
         if state.running:
             await stop_session(context.bot, reason="force")
-        await safe_edit(channel_panel_text(), channel_panel_markup())
+        await render_panel(context.bot)
         return
 
     if data == "STOP:GRACEFUL":
         state.graceful_stop_requested = True
-        await safe_edit(channel_panel_text(), channel_panel_markup())
+        await render_panel(context.bot)
         return
-
-    await safe_edit(channel_panel_text(), channel_panel_markup())
 
 # =========================
 # POST INIT
