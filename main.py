@@ -189,46 +189,77 @@ def _fetch_latest_issue_sync() -> Optional[dict]:
 async def fetch_latest_issue() -> Optional[dict]:
     return await asyncio.to_thread(_fetch_latest_issue_sync)
 
-# =========================
-# PREDICTION ENGINE (your requested: ZigZag Hunter + Adapter)
-# =========================
+# stateful zigzag lock
 class PredictionEngine:
     def __init__(self):
         self.history: List[str] = []
         self.raw_history: List[dict] = []
         self.last_prediction: Optional[str] = None
 
-    def update_history(self, issue_data: dict):
-        try:
-            number = int(issue_data["number"])
-            result_type = "BIG" if number >= 5 else "SMALL"
-        except Exception:
-            return
+        # ✅ নতুন দুইটা state
+        self.zigzag_lock: bool = False
+        self.zigzag_lock_until_loss: bool = True  # clarity
 
-        if (not self.raw_history) or (self.raw_history[0].get("issueNumber") != issue_data.get("issueNumber")):
-            self.history.insert(0, result_type)
-            self.raw_history.insert(0, issue_data)
-            self.history = self.history[:120]
-            self.raw_history = self.raw_history[:120]
+    def get_pattern_signal(self, current_streak_loss: int) -> str:
+        # ইতিহাস কম হলে র‍্যান্ডম/লাস্ট
+        if len(self.history) < 5:
+            return self.history[0] if self.history else random.choice(["BIG", "SMALL"])
 
-    def calc_confidence(self, streak_loss):
-        base = random.randint(95, 99)
-        return max(60, base - (streak_loss * 5))
+        h = self.history
+        last, prev1, prev2, prev3 = h[0], h[1], h[2], h[3]
 
-    def get_pattern_signal(self, current_streak_loss):
-        if len(self.history) < 2:
-            return random.choice(["BIG", "SMALL"])
+        # =========================================================
+        # ✅ RULE A: LOSS হলে সাথে সাথে LOCK OFF (Instant Reset)
+        # =========================================================
+        if current_streak_loss >= 1:
+            self.zigzag_lock = False
 
-        last = self.history[0]
-        prev = self.history[1]
+        # =========================================================
+        # ✅ RULE B: ZigZag detect হলে LOCK ON
+        # 3 বা 4 টা পরপর alternating হলে lock
+        # Pattern: B S B S  /  S B S B
+        # =========================================================
+        alt3 = (last != prev1 and prev1 != prev2)          # L,P1,P2 alternating
+        alt4 = (alt3 and prev2 != prev3)                   # L,P1,P2,P3 alternating
 
-        if last != prev:
+        if (alt3 and len(h) >= 3) or (alt4 and len(h) >= 4):
+            # আরও strong করতে চাইলে: শুধু alt4 এ lock করো
+            self.zigzag_lock = True
+
+        # =========================================================
+        # ✅ RULE C: যদি ZigZag LOCK ON থাকে
+        # তাহলে মার্কেটের flow follow করব (Opposite না)
+        # অর্থাৎ last যেটা, next হবে তার বিপরীত (alternation maintain)
+        # BUT এটা opposite “ধরা” না, এটা sequence continuation
+        # =========================================================
+        if self.zigzag_lock:
             prediction = "SMALL" if last == "BIG" else "BIG"
-        else:
+            self.last_prediction = prediction
+            return prediction
+
+        # =========================================================
+        # ✅ NORMAL MOOD (তোমার MATRIX base)
+        # =========================================================
+        prediction = None
+
+        # 1) STRONG DRAGON
+        if last == prev1 == prev2:
             prediction = last
 
-        if current_streak_loss > 0:
-            prediction = "SMALL" if prediction == "BIG" else "BIG"
+        # 2) PURE ZIGZAG (normal mood এ চাইলে OFF রাখো / soft রাখো)
+        # এখানে আগের মতো উল্টা ধরবো না।
+        # zigzag_lock off থাকলে zigzag কে ignore করলেও হবে।
+        elif last != prev1 and prev1 != prev2:
+            # soft: flow continuation
+            prediction = "SMALL" if last == "BIG" else "BIG"
+
+        # 3) PAIR FORMATION
+        elif prev1 == prev2 and last != prev1:
+            prediction = last
+
+        # 4) DEFAULT TREND
+        else:
+            prediction = last
 
         self.last_prediction = prediction
         return prediction
