@@ -215,7 +215,7 @@ async def fetch_latest_issue() -> Optional[dict]:
     return await asyncio.to_thread(_fetch_latest_issue_sync)
 
 # =========================
-# PREDICTION ENGINE (your given logic)
+# PREDICTION ENGINE (ZIGZAG + LOSS RESET)
 # =========================
 class PredictionEngine:
     def __init__(self):
@@ -241,22 +241,37 @@ class PredictionEngine:
         return max(60, base - (streak_loss * 5))
 
     def get_pattern_signal(self, current_streak_loss):
-        if len(self.history) < 3:
+        # ইতিহাস খুব ছোট হলে র‍্যান্ডম
+        if len(self.history) < 4:
             return self.history[0] if self.history else random.choice(["BIG", "SMALL"])
 
         last = self.history[0]
         prev1 = self.history[1]
         prev2 = self.history[2]
 
-        # LOSS RESET: if any loss, return trend last
+        # =========================================================
+        # 🛡️ RULE 1: LOSS RESET (Loss = Copy Paste)
+        # =========================================================
+        # যদি ১টাও লস হয়, তার মানে আমাদের প্যাটার্ন ভুল হয়েছে।
+        # তখন আমরা আর জিগজ্যাগ খুঁজব না। সোজা Last Result Copy (Trend) করব।
         if current_streak_loss > 0:
             return last
 
-        # Zigzag detection if no loss
+        # =========================================================
+        # ⚡ RULE 2: ZIGZAG DETECTION (Winning Mode)
+        # =========================================================
+        # যদি টানা ৩টা রেজাল্ট জিগজ্যাগ হয় (যেমন: B S B বা S B S)
+        # এবং আমাদের কোনো লস না থাকে...
         is_zigzag = (last != prev1 and prev1 != prev2)
+        
         if is_zigzag:
+            # আমরা জিগজ্যাগ কন্টিনিউ করব (উল্টা ধরব)
             return "SMALL" if last == "BIG" else "BIG"
 
+        # =========================================================
+        # 🐢 RULE 3: DEFAULT (COPY PASTE)
+        # =========================================================
+        # যদি জিগজ্যাগ না থাকে এবং লস না হয়, তবে বাই ডিফল্ট Trend Follow (Copy Paste)
         return last
 
 # =========================
