@@ -27,10 +27,8 @@ from telegram.ext import (
 # =========================
 BOT_TOKEN = "8456002611:AAHI8s74CeabkdjLHMZ3zDISBS8_0ZyPq3s"
 
-# ✅ Fix brand encoding by using clean unicode
 BRAND_NAME = "⚡ 𝗧𝗞 𝗠𝗔𝗥𝗨𝗙 𝗩𝗜𝗣 𝗦𝗜𝗚𝗡𝗔𝗟 ⚡"
 
-# ✅ Updated links
 REG_LINK = "https://tkclub2.com/#/register?invitationCode=42584207677"
 OWNER_USERNAME = "@OWNER_MARUF_TOP"
 CHANNEL_LINK = "https://t.me/Vip_signal_group_11"
@@ -38,7 +36,7 @@ CHANNEL_LINK = "https://t.me/Vip_signal_group_11"
 TARGETS = {
     "MAIN_GROUP": -1003263928753,
     "VIP": -1002892329434,
-    "PUBLIC": -1003034758076,  # ✅ Updated Public ID
+    "PUBLIC": -1003034758076,  # updated
 }
 
 API_URL = "https://api880.inpay88.net/api/webapi/GetNoaverageEmerdList"
@@ -80,59 +78,45 @@ def is_now_in_any_window(now: datetime) -> bool:
     return False
 
 
+def _minutes_to_12h_str(mins: int) -> str:
+    h = (mins // 60) % 24
+    m = mins % 60
+    dt = datetime(2000, 1, 1, h, m, tzinfo=BD_TZ)
+    return dt.strftime("%I:%M %p").lstrip("0")
+
+
+def _next_window_start(now: datetime) -> Tuple[str, int]:
+    """
+    Returns (display_string, minutes_from_now)
+    Next schedule window start in BD time.
+    """
+    now_mins = now.hour * 60 + now.minute
+    candidates = []
+    for start, _end in AUTO_WINDOWS_MIN:
+        delta = start - now_mins
+        if delta < 0:
+            delta += 24 * 60
+        candidates.append((delta, start))
+    candidates.sort(key=lambda x: x[0])
+    delta, start_min = candidates[0]
+    return _minutes_to_12h_str(start_min), delta
+
+
 # =========================
-# STICKERS (OLD + NEW)
+# STICKERS (UPDATED BY YOU)
 # =========================
 STICKERS = {
-    # OLD PRED (1M)
-    "PRED_1M_BIG_OLD": "CAACAgUAAxkBAAEQTr5pcwrBGAZ5xLp_AUAFWSiWiS0rOwAC4R0AAg7MoFcKItGd1m2CsjgE",
-    "PRED_1M_SMALL_OLD": "CAACAgUAAxkBAAEQTr9pcwrC7iH-Ei5xHz2QapE-DFkgLQACXxkAAoNWmFeTSY6h7y7VlzgE",
-    "COLOR_RED_OLD": "CAACAgUAAxkBAAEQUClpc4JDd9n_ZQ45hPk-a3tEjFXnugACbhgAAqItoVd2zRs4VkXOHDgE",
-    "COLOR_GREEN_OLD": "CAACAgUAAxkBAAEQUCppc4JDHWjTzBCFIOx2Hcjtz9UnnAACzRwAAnR3oVejA9DVGekyYTgE",
+    # Prediction stickers (you provided)
+    "PRED_BIG": "CAACAgUAAxkBAAEQYx5pfc4AATgOO5wT5AABMN-bMJl5k_RQAALhHQACDsygVwoi0Z3WbYKyOAQ",
+    "PRED_SMALL": "CAACAgUAAxkBAAEQYx1pfc4AAYYby230GOERm9UbVwrbZrcAAl8ZAAKDVphXk0mOoe8u1Zc4BA",
 
-    # NEW Session start (MUST)
-    "SESSION_PRESTART": "CAACAgUAAxkBAAEQWbVpeJdAC4ezowY1slx0adINWawqRQAClRYAAvpg4FTYgDvCMotu1DgE",
-    "SESSION_START_SEQ": [
-        "CAACAgUAAxkBAAEQTjJpcmWOexDHyK90IXQU5Qzo18uBKAACwxMAAlD6QFRRMClp8Q4JAAE4BA",
-        "CAACAgUAAxkBAAEQTkJpcmYz7CETjTbVuTaTloOWj0w1NgACrxkAAg8OoVfAIXjvhcHVhDgE",
-        "CAACAgUAAxkBAAEQWbhpeJdF_GDrVMFmoDDmnqS74GMb5wACQBsAAqP3IFfZd1e-pXZaHDgE",
-        "CAACAgUAAxkBAAEQWcdpeJdPqChaww0JErr0kn2VXkAvdAACmRUAAi_LIVccdiGIYpPZdDgE",
-        "CAACAgUAAxkBAAEQWc9peJg6qnOLGfsK-_GLG-qGb-z4FAACuBYAAsnBmFSnBxgoKMV0zTgE",
-    ],
+    # Session start/close stickers (you provided)
+    "SESSION_START": "CAACAgUAAxkBAAEQYyFpfc4wbxDAkFww3cpExFCaz1iDbQACoB0AAhxruVZktiP7rGZdATgE",
+    "SESSION_CLOSE": "CAACAgUAAxkBAAEQYyJpfc4wO83n6lkaDSMVxxFDzq6erwACaB4AAkbvuFbNxjX-zft8RzgE",
 
-    # NEW Prediction set (alternate)
-    "PRED_BIG_NEW": "CAACAgUAAxkBAAEQWb1peJdIq-Oq2r5tadtbwIn8hJbtVgAC5hcAAkBuIVf-60HIJ4L9tzgE",
-    "PRED_SMALL_NEW": "CAACAgUAAxkBAAEQWb5peJdIXa96Z29KBL7Irg-7YEG67wACZRoAAsDBIVc_bllpQcf52jgE",
-    "COLOR_RED_NEW": "CAACAgUAAxkBAAEQWcJpeJdKIJP8aovK9UrPBLXvWlvFLQACQxsAAiyRIFdg8_K_Uoi6qDgE",
-    "COLOR_GREEN_NEW": "CAACAgUAAxkBAAEQWcFpeJdKf82jvSdW8pnpqOVBrBNvfwAC8hUAAojDIFc9fDJEqFMfRzgE",
-
-    # WIN/Loss
-    "WIN_BIG": "CAACAgUAAxkBAAEQTjhpcmXknd41yv99at8qxdgw3ivEkAACyRUAAraKsFSky2Ut1kt-hjgE",
-    "WIN_SMALL": "CAACAgUAAxkBAAEQTjlpcmXkF8R0bNj0jb1Xd8NF-kaTSQAC7DQAAhnRsVTS3-Z8tj-kajgE",
+    # Keep your win/loss stickers (optional: you can change later)
     "WIN_ALWAYS": "CAACAgUAAxkBAAEQUTZpdFC4094KaOEdiE3njwhAGVCuBAAC4hoAAt0EqVQXmdKVLGbGmzgE",
-    "WIN_ANY": "CAACAgUAAxkBAAEQTydpcz9Kv1L2PJyNlbkcZpcztKKxfQACDRsAAoq1mFcAAYLsJ33TdUA4BA",
-    "WIN_EXTRA_NEW": "CAACAgUAAxkBAAEQWctpeJdTTmIB7FFU1RgNNxaBs5FtggACDxgAAgTqOVf77zJ4WoeanjgE",
     "LOSS": "CAACAgUAAxkBAAEQTytpcz9VQoHyZ5ClbKSqKCJbpqX6yQACahYAAl1wAAFUL9xOdyh8UL84BA",
-
-    "WIN_POOL": [
-        "CAACAgUAAxkBAAEQTzNpcz9ns8rx_5xmxk4HHQOJY2uUQQAC3RoAAuCpcFbMKj0VkxPOdTgE",
-        "CAACAgUAAxkBAAEQTzRpcz9ni_I4CjwFZ3iSt4xiXxFgkwACkxgAAnQKcVYHd8IiRqfBXTgE",
-        "CAACAgUAAxkBAAEQTx9pcz8GryuxGBMFtzRNRbiCTg9M8wAC5xYAAkN_QFWgd5zOh81JGDgE",
-    ],
-    "SUPER_WIN": {
-        2: "CAACAgUAAxkBAAEQTiBpcmUfm9aQmlIHtPKiG2nE2e6EeAACcRMAAiLWqFSpdxWmKJ1TXzgE",
-        3: "CAACAgUAAxkBAAEQTiFpcmUgdgJQ_czeoFyRhNZiZI2lwwAC8BcAAv8UqFSVBQEdUW48HTgE",
-        4: "CAACAgUAAxkBAAEQTiJpcmUgSydN-tKxoSVdFuAvCcJ3fQACvSEAApMRqFQoUYBnH5Pc7TgE",
-        5: "CAACAgUAAxkBAAEQTiNpcmUgu_dP3wKT2k94EJCiw3u52QACihoAArkfqFSlrldtXbLGGDgE",
-        6: "CAACAgUAAxkBAAEQTiRpcmUhQJUjd2ukdtfEtBjwtMH4MAACWRgAAsTFqVTato0SmSN-6jgE",
-        7: "CAACAgUAAxkBAAEQTiVpcmUhha9HAAF19fboYayfUrm3tdYAAioXAAIHgKhUD0QmGyF5Aug4BA",
-        8: "CAACAgUAAxkBAAEQTixpcmUmevnNEqUbr0qbbVgW4psMNQACMxUAAow-qFSnSz4Ik1ddNzgE",
-        9: "CAACAgUAAxkBAAEQTi1pcmUmpSxAHo2pvR-GjCPTmkLr0AACLh0AAhCRqFRH5-2YyZKq1jgE",
-        10: "CAACAgUAAxkBAAEQTi5pcmUmjmjp7oXg4InxI1dGYruxDwACqBgAAh19qVT6X_-oEywCkzgE",
-    },
-
-    # End sticker after summary (MUST)
-    "SESSION_END_AFTER_SUMMARY": "CAACAgUAAxkBAAEQWdBpeJg6sivWL9tmO0J1ylmxlZCt4QAC8RIAAsRkoFQZsT3pks7C0jgE",
 }
 
 # =========================
@@ -178,23 +162,8 @@ async def get_live_password() -> str:
 
 
 # =========================
-# PREDICTION ENGINE (KEEP + IMPROVE ZigZag)
+# PREDICTION ENGINE (YOUR EXACT LOGIC)
 # =========================
-def _opposite(x: str) -> str:
-    return "SMALL" if x == "BIG" else "BIG"
-
-
-def _is_alternating(seq: List[str], n: int) -> bool:
-    """True if last n items strictly alternate e.g. B S B S ..."""
-    if len(seq) < n:
-        return False
-    s = seq[:n]
-    for i in range(n - 1):
-        if s[i] == s[i + 1]:
-            return False
-    return True
-
-
 class PredictionEngine:
     def __init__(self):
         self.history: List[str] = []
@@ -214,54 +183,46 @@ class PredictionEngine:
             self.history = self.history[:120]
             self.raw_history = self.raw_history[:120]
 
-    def calc_confidence(self, streak_loss: int) -> int:
-        base = random.randint(93, 98)
-        # loss হলে confidence একটু কমে
-        return max(45, base - (streak_loss * 8))
+    def calc_confidence(self, streak_loss):
+        base = random.randint(94, 99)
+        return max(50, base - (streak_loss * 6))
 
-    def get_pattern_signal(self, current_streak_loss: int) -> str:
-        if len(self.history) < 6:
+    def get_pattern_signal(self, current_streak_loss):
+        if len(self.history) < 10:
             return random.choice(["BIG", "SMALL"])
 
-        last_result = self.history[0]
-        recent = self.history[:8]  # take more context
+        h = self.history
+        last = h[0]
+        prev1 = h[1]
+        prev2 = h[2]
 
         prediction = None
 
-        # =========================================================
-        # ✅ NEW: Strong ZigZag Detector (BIG SMALL BIG SMALL…)
-        # =========================================================
-        # If last 6 are alternating, we predict continuing alternation = opposite of last_result
-        if _is_alternating(recent, 6):
-            prediction = _opposite(last_result)
-        # If last 4 alternating, also strong hint
-        elif _is_alternating(recent, 4):
-            prediction = _opposite(last_result)
+        # PHASE 1
+        is_zigzag = (last != prev1 and prev1 != prev2)
+        is_dragon = (last == prev1 and prev1 == prev2)
+        is_aabb = (last == prev1 and prev2 == h[3] and last != prev2)
 
-        # =========================================================
-        # Existing Pattern Analysis (kept)
-        # =========================================================
-        if prediction is None:
-            # Dragon (Last 3 same)
-            if recent[0] == recent[1] == recent[2]:
-                prediction = recent[0]
-            # ZigZag basic (kept)
-            elif recent[0] != recent[1] and recent[1] != recent[2]:
-                prediction = _opposite(recent[0])
-            # 2-2 Pattern (AABB)
-            elif recent[0] == recent[1] and recent[2] == recent[3] and recent[1] != recent[2]:
-                prediction = _opposite(recent[0])
+        # PHASE 2
+        if is_dragon:
+            prediction = last
+        elif is_zigzag:
+            prediction = "SMALL" if last == "BIG" else "BIG"
+        elif is_aabb:
+            prediction = "SMALL" if last == "BIG" else "BIG"
+        else:
+            last_6 = h[:6]
+            if last_6.count("BIG") > last_6.count("SMALL"):
+                prediction = "BIG"
             else:
-                prediction = last_result
+                prediction = "SMALL"
 
-        # =========================================================
-        # ⚠️ INVERSE LOGIC ADAPTER (kept)
-        # =========================================================
-        if current_streak_loss >= 2:
-            prediction = _opposite(prediction)
+        # PHASE 3
+        if 1 <= current_streak_loss <= 3:
+            prediction = "SMALL" if prediction == "BIG" else "BIG"
 
-        if current_streak_loss >= 5:
-            prediction = last_result
+        if current_streak_loss >= 4:
+            prediction = last
 
         self.last_prediction = prediction
         return prediction
@@ -271,7 +232,7 @@ class PredictionEngine:
 # STATE
 # =========================
 def now_bd_str() -> str:
-    return datetime.now(BD_TZ).strftime("%I:%M:%S %p")
+    return datetime.now(BD_TZ).strftime("%I:%M:%S %p").lstrip("0")
 
 
 def calc_current_1m_period(now: datetime) -> str:
@@ -308,12 +269,7 @@ class BotState:
 
     selected_targets: List[int] = field(default_factory=lambda: [TARGETS["MAIN_GROUP"]])
 
-    # Default: Color OFF always
-    color_mode: bool = False
-
-    # Auto schedule default ON
     auto_schedule_enabled: bool = True
-
     started_by_schedule: bool = False
     graceful_stop_requested: bool = False
     stop_event: asyncio.Event = field(default_factory=asyncio.Event)
@@ -323,7 +279,7 @@ state = BotState()
 
 
 # =========================
-# FETCH (1 MIN ONLY, typeId=1)
+# FETCH
 # =========================
 def _fetch_latest_issue_sync() -> Optional[dict]:
     payload = {
@@ -357,54 +313,51 @@ async def fetch_latest_issue() -> Optional[dict]:
 
 
 # =========================
-# STICKER PICKER
-# =========================
-def choose_pred_stickers(pick: str) -> Tuple[str, Optional[str]]:
-    use_new = (random.random() < 0.35)
-    if use_new:
-        pred = STICKERS["PRED_BIG_NEW"] if pick == "BIG" else STICKERS["PRED_SMALL_NEW"]
-        color = STICKERS["COLOR_GREEN_NEW"] if pick == "BIG" else STICKERS["COLOR_RED_NEW"]
-        return pred, color
-    pred = STICKERS["PRED_1M_BIG_OLD"] if pick == "BIG" else STICKERS["PRED_1M_SMALL_OLD"]
-    color = STICKERS["COLOR_GREEN_OLD"] if pick == "BIG" else STICKERS["COLOR_RED_OLD"]
-    return pred, color
-
-
-# =========================
-# PREMIUM MESSAGES (IMPROVED)
+# PREMIUM MESSAGE STYLE (UPGRADED)
 # =========================
 def pick_badge(pick: str) -> str:
     return "🟢 <b>BIG</b>" if pick == "BIG" else "🔴 <b>SMALL</b>"
 
 
-def color_badge_from_pick(pick: str) -> str:
-    return "🟩 <b>GREEN</b>" if pick == "BIG" else "🟥 <b>RED</b>"
+def _hype_emoji_by_minutes(delta_mins: int) -> str:
+    # more hype if longer wait
+    if delta_mins >= 180:
+        return "🔥🚀✨"
+    if delta_mins >= 60:
+        return "🔥✨"
+    if delta_mins >= 30:
+        return "✨⏳"
+    return "⏳"
 
 
-def marketing_block() -> str:
+def review_next_block(now: datetime) -> str:
+    next_time_str, delta_mins = _next_window_start(now)
+    hype = _hype_emoji_by_minutes(delta_mins)
+
     return (
-        "📌 <b>NOTE:</b> এই লিংকে একাউন্ট খুলে <b>Deposit</b> করুন, তারপর VIP তে আরো strong signal পাবেন 👇\n"
-        f"🔗 <b><a href='{REG_LINK}'>OPEN ACCOUNT (REGISTER)</a></b>\n"
-        f"📣 <b><a href='{CHANNEL_LINK}'>JOIN VIP CHANNEL</a></b>"
+        f"⏺সিগন্যাল কেমন হলো? অবশ্যই এখানে রিভিউ দিবেন 💋\n\n"
+        f"{OWNER_USERNAME}  ❤️\n\n"
+        f"এবং পরবর্তী সিগন্যাল হবে <b>{next_time_str}</b> {hype}\n\n"
+        f"{REG_LINK}\n\n"
+        f"অ্যাকাউন্ট খুলে ইনবক্সে ইউআইডি দিন। এবং মিনিমাম 300 টাকা ডিপোজিট করে বট সিগন্যাল উপভোগ করুন এবং আনলিমিটেড হ্যাক নিন 🌟✅\n\n"
+        f"{OWNER_USERNAME} ❤️"
     )
 
 
 def format_signal(issue: str, pick: str, conf: int) -> str:
-    entry_line = f"🎯 <b>ENTRY:</b> {pick_badge(pick)}"
-    if state.color_mode:
-        entry_line += f"  |  {color_badge_from_pick(pick)}"
-
+    now = datetime.now(BD_TZ)
     return (
         f"{BRAND_NAME}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"🧾 <b>PERIOD:</b> <code>{issue}</code>\n"
-        f"{entry_line}\n"
+        f"🎯 <b>ENTRY:</b> {pick_badge(pick)}\n"
         f"✨ <b>CONFIDENCE:</b> 🔥 <b>{conf}%</b>\n"
         f"🧠 <b>RECOVERY:</b> <b>{state.streak_loss}/{MAX_RECOVERY_STEPS}</b>\n"
         f"🕒 <b>TIME:</b> <b>{now_bd_str()}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"{marketing_block()}\n"
-        f"👤 <b>OWNER:</b> {OWNER_USERNAME}"
+        f"{review_next_block(now)}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📣 <b>VIP:</b> <b><a href='{CHANNEL_LINK}'>JOIN NOW</a></b>"
     )
 
 
@@ -428,7 +381,7 @@ def format_result(issue: str, res_num: str, res_type: str, pick: str, is_win: bo
         f"📊 <b>W:</b> <b>{state.wins}</b>  |  <b>L:</b> <b>{state.losses}</b>\n"
         f"🕒 <b>{now_bd_str()}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"{marketing_block()}"
+        f"📣 <b>VIP:</b> <b><a href='{CHANNEL_LINK}'>JOIN NOW</a></b>"
     )
 
 
@@ -464,6 +417,15 @@ def _chat_name(chat_id: int) -> str:
     return str(chat_id)
 
 
+def _windows_12h() -> str:
+    out = []
+    for a, b in AUTO_WINDOWS:
+        a_m = _hhmm_to_minutes(a)
+        b_m = _hhmm_to_minutes(b)
+        out.append(f"{_minutes_to_12h_str(a_m)}-{_minutes_to_12h_str(b_m)}")
+    return " | ".join(out)
+
+
 def panel_text() -> str:
     running = "🟢 RUNNING" if state.running else "🔴 STOPPED"
     sel = state.selected_targets[:] if state.selected_targets else [TARGETS["MAIN_GROUP"]]
@@ -472,20 +434,16 @@ def panel_text() -> str:
     total = state.wins + state.losses
     wr = (state.wins / total * 100) if total else 0.0
 
-    color = "🎨 <b>Color:</b> ON" if state.color_mode else "🎨 <b>Color:</b> OFF"
     auto = "⏰ <b>Auto Schedule:</b> ON" if state.auto_schedule_enabled else "⏰ <b>Auto Schedule:</b> OFF"
     origin = "🧩 <b>Session:</b> AUTO" if (state.running and state.started_by_schedule) else "🧩 <b>Session:</b> MANUAL"
-
-    windows = " | ".join([f"{a}-{b}" for a, b in AUTO_WINDOWS])
 
     return (
         "🔐 <b>CONTROL PANEL</b>\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         f"📡 <b>Status:</b> {running}\n"
         f"{origin}\n"
-        f"{color}\n"
         f"{auto}\n"
-        f"🗓 <b>Schedule:</b> <i>{windows}</i>\n"
+        f"🗓 <b>Schedule:</b> <i>{_windows_12h()}</i>\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         "🎯 <b>Send Signals To</b>\n"
         f"{sel_lines}\n"
@@ -505,7 +463,6 @@ def selector_markup() -> InlineKeyboardMarkup:
     rows = [
         [btn("MAIN GROUP", TARGETS["MAIN_GROUP"])],
         [btn("VIP", TARGETS["VIP"]), btn("PUBLIC", TARGETS["PUBLIC"])],
-        [InlineKeyboardButton("🎨 Color: ON" if state.color_mode else "🎨 Color: OFF", callback_data="TOGGLE_COLOR")],
         [InlineKeyboardButton("⏰ Auto: ON" if state.auto_schedule_enabled else "⏰ Auto: OFF", callback_data="TOGGLE_AUTO")],
         [InlineKeyboardButton("⚡ Start 1 MIN", callback_data="START:1M")],
         [
@@ -552,17 +509,12 @@ async def broadcast_message(bot, text: str) -> Dict[int, int]:
 
 
 # =========================
-# TIMER (Rotating Clock) ✅
+# CHECKING TIMER (ROTATING CLOCK)
 # =========================
 CLOCK_FRAMES = ["🕛", "🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚"]
 
 
 async def run_checking_timer(bot, chat_id: int, msg_id: int, issue: str):
-    """
-    ✅ Rotating clock on the checking message.
-    - edits every ~2 seconds
-    - stops automatically if message deleted/edited fails
-    """
     i = 0
     try:
         while state.running and state.active and (state.active.predicted_issue == issue):
@@ -576,7 +528,6 @@ async def run_checking_timer(bot, chat_id: int, msg_id: int, issue: str):
                     parse_mode=ParseMode.HTML,
                 )
             except Exception:
-                # If can't edit (deleted/old), stop quietly
                 break
             await asyncio.sleep(2.0)
     except asyncio.CancelledError:
@@ -602,7 +553,7 @@ async def stop_session(bot, reason: str = "manual"):
 
     # cancel timers + delete checking
     if state.active:
-        for cid, task in (state.active.timer_tasks or {}).items():
+        for _cid, task in (state.active.timer_tasks or {}).items():
             try:
                 task.cancel()
             except Exception:
@@ -610,15 +561,15 @@ async def stop_session(bot, reason: str = "manual"):
         for cid, mid in (state.active.checking_msg_ids or {}).items():
             await safe_delete(bot, cid, mid)
 
-    # Summary first
+    # Summary
     for cid in state.selected_targets:
         try:
             await bot.send_message(cid, format_summary(), parse_mode=ParseMode.HTML, disable_web_page_preview=True)
         except Exception:
             pass
 
-    # End sticker MUST after summary
-    await broadcast_sticker(bot, STICKERS["SESSION_END_AFTER_SUMMARY"])
+    # Session close sticker (you provided)
+    await broadcast_sticker(bot, STICKERS["SESSION_CLOSE"])
 
     state.active = None
     state.graceful_stop_requested = False
@@ -634,16 +585,10 @@ async def start_session(bot, started_by_schedule: bool):
     state.active = None
     state.last_signal_issue = None
     state.started_by_schedule = started_by_schedule
-
-    # always default color OFF when session starts
-    state.color_mode = False
-
     reset_stats()
 
-    # MUST: prestart + start seq
-    await broadcast_sticker(bot, STICKERS["SESSION_PRESTART"])
-    for s in STICKERS["SESSION_START_SEQ"]:
-        await broadcast_sticker(bot, s)
+    # Session start sticker (you provided)
+    await broadcast_sticker(bot, STICKERS["SESSION_START"])
 
 
 # =========================
@@ -660,7 +605,6 @@ async def engine_loop(app: Application, my_session: int):
         sec = now.second
         current_period = calc_current_1m_period(now)
 
-        # safe window for signal send
         is_safe_time = (5 <= sec <= 40)
         resolved_this_tick = False
 
@@ -676,8 +620,8 @@ async def engine_loop(app: Application, my_session: int):
                 pick = state.active.pick
                 is_win = (pick == latest_type)
 
-                # stop timer tasks + delete checking
-                for cid, task in (state.active.timer_tasks or {}).items():
+                # stop timers + delete checking
+                for _cid, task in (state.active.timer_tasks or {}).items():
                     try:
                         task.cancel()
                     except Exception:
@@ -690,15 +634,7 @@ async def engine_loop(app: Application, my_session: int):
                     state.streak_win += 1
                     state.streak_loss = 0
                     state.max_win_streak = max(state.max_win_streak, state.streak_win)
-
                     await broadcast_sticker(bot, STICKERS["WIN_ALWAYS"])
-                    if state.streak_win in STICKERS["SUPER_WIN"]:
-                        await broadcast_sticker(bot, STICKERS["SUPER_WIN"][state.streak_win])
-                    else:
-                        await broadcast_sticker(bot, random.choice(STICKERS["WIN_POOL"]))
-                    await broadcast_sticker(bot, STICKERS["WIN_BIG"] if latest_type == "BIG" else STICKERS["WIN_SMALL"])
-                    await broadcast_sticker(bot, STICKERS["WIN_ANY"])
-                    await broadcast_sticker(bot, STICKERS["WIN_EXTRA_NEW"])
                 else:
                     state.losses += 1
                     state.streak_loss += 1
@@ -726,12 +662,8 @@ async def engine_loop(app: Application, my_session: int):
                 pred = state.engine.get_pattern_signal(state.streak_loss)
                 conf = state.engine.calc_confidence(state.streak_loss)
 
-                pred_stk, color_stk = choose_pred_stickers(pred)
-                await broadcast_sticker(bot, pred_stk)
-
-                if state.color_mode and color_stk:
-                    await broadcast_sticker(bot, color_stk)
-
+                # send your fixed sticker set
+                await broadcast_sticker(bot, STICKERS["PRED_BIG"] if pred == "BIG" else STICKERS["PRED_SMALL"])
                 await broadcast_message(bot, format_signal(current_period, pred, conf))
 
                 # checking message + timer
@@ -760,11 +692,6 @@ async def engine_loop(app: Application, my_session: int):
 # AUTO SCHEDULER LOOP
 # =========================
 async def scheduler_loop(app: Application):
-    """
-    Auto schedule:
-    - If now within window and bot not running -> auto start
-    - If bot running AND started_by_schedule AND now outside -> auto stop
-    """
     while True:
         try:
             now = datetime.now(BD_TZ)
@@ -837,11 +764,6 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(panel_text(), parse_mode=ParseMode.HTML, reply_markup=selector_markup())
         return
 
-    if data == "TOGGLE_COLOR":
-        state.color_mode = not state.color_mode
-        await q.edit_message_text(panel_text(), parse_mode=ParseMode.HTML, reply_markup=selector_markup())
-        return
-
     if data == "TOGGLE_AUTO":
         state.auto_schedule_enabled = not state.auto_schedule_enabled
         await q.edit_message_text(panel_text(), parse_mode=ParseMode.HTML, reply_markup=selector_markup())
@@ -871,7 +793,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================
-# POST INIT (Render fix)
+# POST INIT
 # =========================
 async def post_init(app: Application):
     app.create_task(scheduler_loop(app))
