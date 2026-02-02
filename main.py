@@ -114,7 +114,7 @@ def result_emoji(res_type: str) -> str:
 CLOCK_SPIN = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚"]
 
 # =========================
-# ✅ PREDICTION ENGINE (WITH YOUR LOGIC)
+# ✅ PREDICTION ENGINE (YOUR FINAL LOGIC)
 # =========================
 class PredictionEngine:
     def __init__(self):
@@ -137,64 +137,41 @@ class PredictionEngine:
             self.history = self.history[:200]
             self.raw_history = self.raw_history[:200]
 
-    def _detect_market_mood(self) -> str:
-        """
-        Returns:
-          - "ZIGZAG" if last 3 are alternating (B-S-B / S-B-S)
-          - "TREND"  if last 3 are same (B-B-B / S-S-S)
-          - "MIXED"  otherwise
-        """
+    def _detect_zigzag_mood(self) -> bool:
+        """B-S-B অথবা S-B-S যেকোনো মুড শনাক্ত করবে"""
         if len(self.history) < 3:
-            return "MIXED"
+            return False
 
+        # h0 = বর্তমান, h1 = আগেরটা, h2 = তার আগেরটা
         h0, h1, h2 = self.history[0], self.history[1], self.history[2]
 
-        # Zigzag: alternating
-        if (h0 != h1) and (h1 != h2):
-            return "ZIGZAG"
+        # যদি বর্তমানটা আগেরটার উল্টা হয় এবং আগেরটা তার আগেরটার উল্টা হয় (B-S-B বা S-B-S)
+        return (h0 != h1) and (h1 != h2)
 
-        # Trend: same
-        if (h0 == h1) and (h1 == h2):
-            return "TREND"
-
-        return "MIXED"
-
-    # ✅ YOUR EXACT LOGIC
     def get_pattern_signal(self, streak_loss: int) -> str:
-        # ১. যদি টানা ২ বার লস হয়, তার মানে মার্কেট ট্রেন্ড বদলে ফেলেছে।
-        # তখন জিকজ্যাক মুড অফ করে সরাসরি কারেন্ট ট্রেন্ড ফলো করবে।
-        if streak_loss >= 2:
-            self.zigzag_mode = False
-
-        mood = self._detect_market_mood()
         last_result = self.history[0] if self.history else "BIG"
 
-        # ২. জিকজ্যাক মুড ডিটেকশন (B-S-B বা S-B-S)
-        if mood == "ZIGZAG" or self.zigzag_mode:
-            # যদি লস হতে থাকে, তবে জিকজ্যাক জোর করে চালাবে না
-            if streak_loss >= 2:
-                prediction = last_result  # ট্রেন্ড ফলো করবে
-            else:
-                self.zigzag_mode = True
-                prediction = "SMALL" if last_result == "BIG" else "BIG"
+        # ১. জিকজ্যাক মুড শনাক্তকরণ (B-S-B/S-B-S)
+        if self._detect_zigzag_mood():
+            self.zigzag_mode = True
+            # জিকজ্যাক মুডে থাকলে লাস্ট রেজাল্টের উল্টা প্রেডিকশন দেবে
+            prediction = "SMALL" if last_result == "BIG" else "BIG"
 
-        # ৩. ট্রেন্ড মুড (B-B-B বা S-S-S)
-        elif mood == "TREND":
-            prediction = last_result  # ট্রেন্ডের সাথে থাকবে
-
-        # ৪. রিকভারি লজিক: টানা লস হলে ট্রেন্ডের বিপরীতে যাওয়া বন্ধ করে ট্রেন্ডকে সাপোর্ট করবে
+        # ২. অন্য সব সময় মার্কেটকে হুবহু কপি করবে
         else:
-            if streak_loss >= 1:
-                prediction = last_result  # লস হলে রিস্ক না নিয়ে ট্রেন্ড ফলো করবে
-            else:
-                prediction = last_result
+            self.zigzag_mode = False
+            prediction = last_result
+
+        # ৩. সেফটি গার্ড: যদি কপি করতে গিয়ে লস হয়, সাথে সাথে আবার লাস্ট রেজাল্ট কপি করবে
+        # এতে করে লম্বা ট্রেন্ডে লস হওয়ার চান্স থাকবে না
+        if streak_loss > 0:
+            prediction = last_result
 
         self.last_prediction = prediction
         return prediction
 
     def calc_confidence(self, streak_loss: int) -> int:
         base = random.randint(94, 98)
-        # Drop confidence slightly as recovery steps increase
         return max(55, base - (streak_loss * 7))
 
 # =========================
@@ -540,7 +517,6 @@ async def render_panel(bot):
 async def ensure_panel(bot, chat_id: int):
     state.admin_chat_id = chat_id
 
-    # ✅ each /start shows panel again (fresh)
     if state.panel_message_id:
         try:
             await bot.delete_message(chat_id=state.admin_chat_id, message_id=state.panel_message_id)
@@ -649,7 +625,6 @@ async def engine_loop(app_: Application, my_session: int):
                 if state.active.checking_msg_id:
                     await delete_msg(bot, chat_id, state.active.checking_msg_id)
 
-                # ✅ WIN/LOSS stickers + SUPER WIN fixed
                 if is_win:
                     state.wins += 1
                     state.streak_win += 1
