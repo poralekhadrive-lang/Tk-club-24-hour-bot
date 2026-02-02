@@ -114,7 +114,7 @@ def result_emoji(res_type: str) -> str:
 CLOCK_SPIN = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚"]
 
 # =========================
-# ✅ UPDATED PREDICTION ENGINE (ADAPTIVE ZIGZAG) — UPDATED WITH YOUR LOGIC
+# ✅ PREDICTION ENGINE (WITH YOUR LOGIC)
 # =========================
 class PredictionEngine:
     def __init__(self):
@@ -137,13 +137,6 @@ class PredictionEngine:
             self.history = self.history[:200]
             self.raw_history = self.raw_history[:200]
 
-    def _detect_zigzag_3(self) -> bool:
-        """Checks if the last 3 results are alternating (B-S-B or S-B-S)"""
-        if len(self.history) < 3:
-            return False
-        h0, h1, h2 = self.history[0], self.history[1], self.history[2]
-        return (h0 != h1) and (h1 != h2)
-
     def _detect_market_mood(self) -> str:
         """
         Returns:
@@ -156,15 +149,17 @@ class PredictionEngine:
 
         h0, h1, h2 = self.history[0], self.history[1], self.history[2]
 
+        # Zigzag: alternating
         if (h0 != h1) and (h1 != h2):
             return "ZIGZAG"
 
+        # Trend: same
         if (h0 == h1) and (h1 == h2):
             return "TREND"
 
         return "MIXED"
 
-    # ✅ YOUR EXACT LOGIC (AS GIVEN)
+    # ✅ YOUR EXACT LOGIC
     def get_pattern_signal(self, streak_loss: int) -> str:
         # ১. যদি টানা ২ বার লস হয়, তার মানে মার্কেট ট্রেন্ড বদলে ফেলেছে।
         # তখন জিকজ্যাক মুড অফ করে সরাসরি কারেন্ট ট্রেন্ড ফলো করবে।
@@ -201,7 +196,6 @@ class PredictionEngine:
         base = random.randint(94, 98)
         # Drop confidence slightly as recovery steps increase
         return max(55, base - (streak_loss * 7))
-
 
 # =========================
 # API FETCH
