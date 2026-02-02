@@ -116,26 +116,14 @@ def result_emoji(res_type: str) -> str:
 CLOCK_SPIN = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚"]
 
 # =========================
-# PREDICTION ENGINE (NORMAL + ZIGZAG + TRAP)
+# UPDATED PREDICTION ENGINE (ADAPTIVE ZIGZAG)
 # =========================
 class PredictionEngine:
-    """
-    ✅ Zigzag rule (your ask):
-    - If recent 3 results are alternating pattern like: B S B or S B S => Zigzag mode ON
-    - If any loss happens => back to normal mode
-    - If later again recent 3 matches zigzag => Zigzag mode ON again
-
-    ✅ Trap mode (simple + practical):
-    - If last 4 results are same (BBBB or SSSS) => TRAP mode ON (expect reversal)
-    - If loss happens => trap mode OFF
-    """
     def __init__(self):
         self.history: List[str] = []
         self.raw_history: List[dict] = []
         self.last_prediction: Optional[str] = None
-
         self.zigzag_mode: bool = False
-        self.trap_mode: bool = False
 
     def update_history(self, issue_data: dict):
         try:
@@ -144,80 +132,56 @@ class PredictionEngine:
         except Exception:
             return
 
+        # Check if it's a new period to avoid duplicate history
         if (not self.raw_history) or (self.raw_history[0].get("issueNumber") != issue_data.get("issueNumber")):
             self.history.insert(0, result_type)
             self.raw_history.insert(0, issue_data)
-            self.history = self.history[:220]
-            self.raw_history = self.raw_history[:220]
+            self.history = self.history[:200]
+            self.raw_history = self.raw_history[:200]
 
     def _detect_zigzag_3(self) -> bool:
+        """Checks if the last 3 results are alternating (B-S-B or S-B-S)"""
         if len(self.history) < 3:
             return False
-        a, b, c = self.history[0], self.history[1], self.history[2]
-        return (a != b) and (b != c) and (a == c)
-
-    def _detect_trap_4(self) -> bool:
-        if len(self.history) < 4:
-            return False
-        a, b, c, d = self.history[0], self.history[1], self.history[2], self.history[3]
-        return (a == b == c == d)
-
-    def calc_confidence(self, streak_loss: int) -> int:
-        # premium look: stable high, but drop with recovery
-        base = random.randint(94, 99)
-        base -= min(30, streak_loss * 6)
-        # trap/zigzag slight adjustment will be done outside if you want
-        return max(60, base)
-
-    def get_mode_label(self) -> str:
-        if self.trap_mode:
-            return "🧲 <b>TRAP MODE</b>"
-        if self.zigzag_mode:
-            return "⚡ <b>ZIGZAG MODE</b>"
-        return "✅ <b>NORMAL MODE</b>"
+        
+        # history[0] is latest, [1] is previous, [2] is before that
+        h0, h1, h2 = self.history[0], self.history[1], self.history[2]
+        
+        # Logic: Current is different from previous, and previous is different from the one before
+        return (h0 != h1) and (h1 != h2)
 
     def get_pattern_signal(self, streak_loss: int) -> str:
-        # ✅ loss => reset special modes
+        # Rule: If a loss just happened, BREAK Zigzag mode immediately
         if streak_loss > 0:
             self.zigzag_mode = False
-            self.trap_mode = False
 
-        # ✅ detect trap first (stronger)
-        if streak_loss == 0 and self._detect_trap_4():
-            self.trap_mode = True
-            self.zigzag_mode = False
-
-        # ✅ detect zigzag
-        if streak_loss == 0 and (not self.trap_mode) and self._detect_zigzag_3():
+        # Rule: If no active loss and we see a 3-pattern zigzag, ACTIVATE Zigzag mode
+        if (streak_loss == 0) and self._detect_zigzag_3():
             self.zigzag_mode = True
 
-        if len(self.history) < 2:
+        if len(self.history) < 1:
             return random.choice(["BIG", "SMALL"])
 
-        last = self.history[0]
-        prev = self.history[1]
+        last_result = self.history[0]
 
-        # ✅ TRAP: reverse the strong streak expectation
-        if self.trap_mode:
-            prediction = "SMALL" if last == "BIG" else "BIG"
-        # ✅ ZIGZAG: always opposite of last
-        elif self.zigzag_mode:
-            prediction = "SMALL" if last == "BIG" else "BIG"
+        if self.zigzag_mode:
+            # ZIGZAG MODE: Always pick the opposite of what just came
+            prediction = "SMALL" if last_result == "BIG" else "BIG"
         else:
-            # ✅ NORMAL:
-            # if last != prev => continue alternation by taking opposite of last
-            # else => follow last
-            if last != prev:
-                prediction = "SMALL" if last == "BIG" else "BIG"
-            else:
-                prediction = last
-
-            # recovery flip
+            # NORMAL MODE: Follow the trend (last result)
+            # If we are on a loss streak, we try the opposite of the trend to recover
             if streak_loss > 0:
-                prediction = "SMALL" if prediction == "BIG" else "BIG"
+                prediction = "SMALL" if last_result == "BIG" else "BIG"
+            else:
+                prediction = last_result
 
         self.last_prediction = prediction
         return prediction
+
+    def calc_confidence(self, streak_loss: int) -> int:
+        base = random.randint(94, 98)
+        # Drop confidence slightly as recovery steps increase
+        return max(55, base - (streak_loss * 7))
 
 # =========================
 # MESSAGE FORMATS (clean + premium, less jhamela)
