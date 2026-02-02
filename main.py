@@ -114,9 +114,31 @@ def result_emoji(res_type: str) -> str:
 CLOCK_SPIN = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚"]
 
 # =========================
-# ✅ UPDATED PREDICTION ENGINE (ADAPTIVE ZIGZAG) — EXACT COPY
+# ✅ UPDATED PREDICTION ENGINE (MARKET MOOD + ZIGZAG HOLD)
 # =========================
-def _detect_market_mood(self) -> str:
+class PredictionEngine:
+    def __init__(self):
+        self.history: List[str] = []
+        self.raw_history: List[dict] = []
+        self.last_prediction: Optional[str] = None
+        self.zigzag_mode: bool = False
+
+    def update_history(self, issue_data: dict):
+        try:
+            number = int(issue_data["number"])
+            result_type = "BIG" if number >= 5 else "SMALL"
+        except Exception:
+            return
+
+        # Check if it's a new period to avoid duplicate history
+        if (not self.raw_history) or (self.raw_history[0].get("issueNumber") != issue_data.get("issueNumber")):
+            self.history.insert(0, result_type)
+            self.raw_history.insert(0, issue_data)
+            self.history = self.history[:200]
+            self.raw_history = self.raw_history[:200]
+
+    # ✅ NEW: Market Mood Detector (hubuhu as you gave)
+    def _detect_market_mood(self) -> str:
         """মার্কেটের বর্তমান মুড শনাক্ত করার লজিক"""
         if len(self.history) < 3:
             return "NORMAL"
@@ -133,10 +155,16 @@ def _detect_market_mood(self) -> str:
             
         return "NORMAL"
 
+    # ✅ UPDATED: Pattern Signal (hubuhu as you gave)
     def get_pattern_signal(self, streak_loss: int) -> str:
         # ১ বার লস হলেই জিকজ্যাক মুড রিসেট হবে যাতে লম্বা লস না হয়
         if streak_loss > 0:
             self.zigzag_mode = False
+
+        if len(self.history) < 1:
+            prediction = random.choice(["BIG", "SMALL"])
+            self.last_prediction = prediction
+            return prediction
 
         mood = self._detect_market_mood()
         last_result = self.history[0]
@@ -159,6 +187,7 @@ def _detect_market_mood(self) -> str:
 
         self.last_prediction = prediction
         return prediction
+
     def calc_confidence(self, streak_loss: int) -> int:
         base = random.randint(94, 98)
         # Drop confidence slightly as recovery steps increase
