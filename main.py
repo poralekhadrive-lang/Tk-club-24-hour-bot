@@ -116,58 +116,42 @@ CLOCK_SPIN = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","�
 # =========================
 # ✅ UPDATED PREDICTION ENGINE (ADAPTIVE ZIGZAG) — EXACT COPY
 # =========================
-class PredictionEngine:
-    def __init__(self):
-        self.history: List[str] = []
-        self.raw_history: List[dict] = []
-        self.last_prediction: Optional[str] = None
-        self.zigzag_mode: bool = False
-
-    def update_history(self, issue_data: dict):
-        try:
-            number = int(issue_data["number"])
-            result_type = "BIG" if number >= 5 else "SMALL"
-        except Exception:
-            return
-
-        # Check if it's a new period to avoid duplicate history
-        if (not self.raw_history) or (self.raw_history[0].get("issueNumber") != issue_data.get("issueNumber")):
-            self.history.insert(0, result_type)
-            self.raw_history.insert(0, issue_data)
-            self.history = self.history[:200]
-            self.raw_history = self.raw_history[:200]
-
-    def _detect_zigzag_3(self) -> bool:
-        """Checks if the last 3 results are alternating (B-S-B or S-B-S)"""
+def _detect_market_mood(self) -> str:
+        """মার্কেটের বর্তমান মুড শনাক্ত করার লজিক"""
         if len(self.history) < 3:
-            return False
+            return "NORMAL"
         
-        # history[0] is latest, [1] is previous, [2] is before that
         h0, h1, h2 = self.history[0], self.history[1], self.history[2]
+
+        # ১. Zigzag Detection: যদি শেষ ৩টা একটার পর একটা উল্টা হয় (B-S-B বা S-B-S)
+        if h0 != h1 and h1 != h2:
+            return "ZIGZAG"
         
-        # Logic: Current is different from previous, and previous is different from the one before
-        return (h0 != h1) and (h1 != h2)
+        # ২. Strong Trend Detection: যদি শেষ ৩টা একই হয় (B-B-B বা S-S-S)
+        if h0 == h1 == h2:
+            return "TREND"
+            
+        return "NORMAL"
 
     def get_pattern_signal(self, streak_loss: int) -> str:
-        # Rule: If a loss just happened, BREAK Zigzag mode immediately
+        # ১ বার লস হলেই জিকজ্যাক মুড রিসেট হবে যাতে লম্বা লস না হয়
         if streak_loss > 0:
             self.zigzag_mode = False
 
-        # Rule: If no active loss and we see a 3-pattern zigzag, ACTIVATE Zigzag mode
-        if (streak_loss == 0) and self._detect_zigzag_3():
-            self.zigzag_mode = True
-
-        if len(self.history) < 1:
-            return random.choice(["BIG", "SMALL"])
-
+        mood = self._detect_market_mood()
         last_result = self.history[0]
 
-        if self.zigzag_mode:
-            # ZIGZAG MODE: Always pick the opposite of what just came
+        # মুড অনুযায়ী প্রেডিকশন
+        if mood == "ZIGZAG" or self.zigzag_mode:
+            self.zigzag_mode = True # জিকজ্যাক মুড ধরে রাখা
             prediction = "SMALL" if last_result == "BIG" else "BIG"
+        
+        elif mood == "TREND":
+            # টানা ট্রেন্ড চললে সেটাকেই ফলো করবে
+            prediction = last_result
+            
         else:
-            # NORMAL MODE: Follow the trend (last result)
-            # If we are on a loss streak, we try the opposite of the trend to recover
+            # নরমাল মুডে লাস্ট রেজাল্ট ফলো করবে, কিন্তু লস হলে উল্টে যাবে (Recovery)
             if streak_loss > 0:
                 prediction = "SMALL" if last_result == "BIG" else "BIG"
             else:
@@ -175,7 +159,6 @@ class PredictionEngine:
 
         self.last_prediction = prediction
         return prediction
-
     def calc_confidence(self, streak_loss: int) -> int:
         base = random.randint(94, 98)
         # Drop confidence slightly as recovery steps increase
