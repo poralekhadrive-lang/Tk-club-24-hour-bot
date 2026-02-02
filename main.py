@@ -114,7 +114,7 @@ def result_emoji(res_type: str) -> str:
 CLOCK_SPIN = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚"]
 
 # =========================
-# ✅ UPDATED PREDICTION ENGINE (MARKET MOOD + ZIGZAG HOLD)
+# ✅ UPDATED PREDICTION ENGINE (ADAPTIVE ZIGZAG) — UPDATED WITH YOUR LOGIC
 # =========================
 class PredictionEngine:
     def __init__(self):
@@ -137,24 +137,34 @@ class PredictionEngine:
             self.history = self.history[:200]
             self.raw_history = self.raw_history[:200]
 
-    # ✅ NEW: Market Mood Detector (hubuhu as you gave)
-    def _detect_market_mood(self) -> str:
-        """মার্কেটের বর্তমান মুড শনাক্ত করার লজিক"""
+    def _detect_zigzag_3(self) -> bool:
+        """Checks if the last 3 results are alternating (B-S-B or S-B-S)"""
         if len(self.history) < 3:
-            return "NORMAL"
-        
+            return False
+        h0, h1, h2 = self.history[0], self.history[1], self.history[2]
+        return (h0 != h1) and (h1 != h2)
+
+    def _detect_market_mood(self) -> str:
+        """
+        Returns:
+          - "ZIGZAG" if last 3 are alternating (B-S-B / S-B-S)
+          - "TREND"  if last 3 are same (B-B-B / S-S-S)
+          - "MIXED"  otherwise
+        """
+        if len(self.history) < 3:
+            return "MIXED"
+
         h0, h1, h2 = self.history[0], self.history[1], self.history[2]
 
-        # ১. Zigzag Detection: যদি শেষ ৩টা একটার পর একটা উল্টা হয় (B-S-B বা S-B-S)
-        if h0 != h1 and h1 != h2:
+        if (h0 != h1) and (h1 != h2):
             return "ZIGZAG"
-        
-        # ২. Strong Trend Detection: যদি শেষ ৩টা একই হয় (B-B-B বা S-S-S)
-        if h0 == h1 == h2:
-            return "TREND"
-            
-        return "NORMAL"
 
+        if (h0 == h1) and (h1 == h2):
+            return "TREND"
+
+        return "MIXED"
+
+    # ✅ YOUR EXACT LOGIC (AS GIVEN)
     def get_pattern_signal(self, streak_loss: int) -> str:
         # ১. যদি টানা ২ বার লস হয়, তার মানে মার্কেট ট্রেন্ড বদলে ফেলেছে।
         # তখন জিকজ্যাক মুড অফ করে সরাসরি কারেন্ট ট্রেন্ড ফলো করবে।
@@ -168,24 +178,30 @@ class PredictionEngine:
         if mood == "ZIGZAG" or self.zigzag_mode:
             # যদি লস হতে থাকে, তবে জিকজ্যাক জোর করে চালাবে না
             if streak_loss >= 2:
-                prediction = last_result # ট্রেন্ড ফলো করবে
+                prediction = last_result  # ট্রেন্ড ফলো করবে
             else:
                 self.zigzag_mode = True
                 prediction = "SMALL" if last_result == "BIG" else "BIG"
-        
+
         # ৩. ট্রেন্ড মুড (B-B-B বা S-S-S)
         elif mood == "TREND":
-            prediction = last_result # ট্রেন্ডের সাথে থাকবে
-            
+            prediction = last_result  # ট্রেন্ডের সাথে থাকবে
+
         # ৪. রিকভারি লজিক: টানা লস হলে ট্রেন্ডের বিপরীতে যাওয়া বন্ধ করে ট্রেন্ডকে সাপোর্ট করবে
         else:
             if streak_loss >= 1:
-                prediction = last_result # লস হলে রিস্ক না নিয়ে ট্রেন্ড ফলো করবে
+                prediction = last_result  # লস হলে রিস্ক না নিয়ে ট্রেন্ড ফলো করবে
             else:
                 prediction = last_result
 
         self.last_prediction = prediction
         return prediction
+
+    def calc_confidence(self, streak_loss: int) -> int:
+        base = random.randint(94, 98)
+        # Drop confidence slightly as recovery steps increase
+        return max(55, base - (streak_loss * 7))
+
 
 # =========================
 # API FETCH
