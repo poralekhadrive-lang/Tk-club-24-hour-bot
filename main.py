@@ -155,43 +155,37 @@ class PredictionEngine:
             
         return "NORMAL"
 
-    # ✅ UPDATED: Pattern Signal (hubuhu as you gave)
     def get_pattern_signal(self, streak_loss: int) -> str:
-        # ১ বার লস হলেই জিকজ্যাক মুড রিসেট হবে যাতে লম্বা লস না হয়
-        if streak_loss > 0:
+        # ১. যদি টানা ২ বার লস হয়, তার মানে মার্কেট ট্রেন্ড বদলে ফেলেছে।
+        # তখন জিকজ্যাক মুড অফ করে সরাসরি কারেন্ট ট্রেন্ড ফলো করবে।
+        if streak_loss >= 2:
             self.zigzag_mode = False
 
-        if len(self.history) < 1:
-            prediction = random.choice(["BIG", "SMALL"])
-            self.last_prediction = prediction
-            return prediction
-
         mood = self._detect_market_mood()
-        last_result = self.history[0]
+        last_result = self.history[0] if self.history else "BIG"
 
-        # মুড অনুযায়ী প্রেডিকশন
+        # ২. জিকজ্যাক মুড ডিটেকশন (B-S-B বা S-B-S)
         if mood == "ZIGZAG" or self.zigzag_mode:
-            self.zigzag_mode = True # জিকজ্যাক মুড ধরে রাখা
-            prediction = "SMALL" if last_result == "BIG" else "BIG"
-        
-        elif mood == "TREND":
-            # টানা ট্রেন্ড চললে সেটাকেই ফলো করবে
-            prediction = last_result
-            
-        else:
-            # নরমাল মুডে লাস্ট রেজাল্ট ফলো করবে, কিন্তু লস হলে উল্টে যাবে (Recovery)
-            if streak_loss > 0:
+            # যদি লস হতে থাকে, তবে জিকজ্যাক জোর করে চালাবে না
+            if streak_loss >= 2:
+                prediction = last_result # ট্রেন্ড ফলো করবে
+            else:
+                self.zigzag_mode = True
                 prediction = "SMALL" if last_result == "BIG" else "BIG"
+        
+        # ৩. ট্রেন্ড মুড (B-B-B বা S-S-S)
+        elif mood == "TREND":
+            prediction = last_result # ট্রেন্ডের সাথে থাকবে
+            
+        # ৪. রিকভারি লজিক: টানা লস হলে ট্রেন্ডের বিপরীতে যাওয়া বন্ধ করে ট্রেন্ডকে সাপোর্ট করবে
+        else:
+            if streak_loss >= 1:
+                prediction = last_result # লস হলে রিস্ক না নিয়ে ট্রেন্ড ফলো করবে
             else:
                 prediction = last_result
 
         self.last_prediction = prediction
         return prediction
-
-    def calc_confidence(self, streak_loss: int) -> int:
-        base = random.randint(94, 98)
-        # Drop confidence slightly as recovery steps increase
-        return max(55, base - (streak_loss * 7))
 
 # =========================
 # API FETCH
