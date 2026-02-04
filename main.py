@@ -21,6 +21,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters,
 )
+from telegram.error import RetryAfter, TimedOut, NetworkError
 
 # =========================
 # CONFIG
@@ -133,14 +134,52 @@ def result_emoji(res_type: str) -> str:
 CLOCK_SPIN = ["🕛", "🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚"]
 
 # =========================
-# ✅ PREDICTION ENGINE (SEED-BASED: SAME AS YOUR HTML LOGIC)
+# ✅ STICKER PRIORITY QUEUE (FIX: 1 goes, 2 doesn't)
+# =========================
+_chat_locks: Dict[int, asyncio.Lock] = {}
+
+
+def _lock_for(chat_id: int) -> asyncio.Lock:
+    if chat_id not in _chat_locks:
+        _chat_locks[chat_id] = asyncio.Lock()
+    return _chat_locks[chat_id]
+
+
+async def send_sticker_priority(bot, chat_id: int, sticker_id: str, tries: int = 7) -> bool:
+    if not sticker_id:
+        return False
+
+    lock = _lock_for(chat_id)
+    async with lock:
+        for attempt in range(tries):
+            try:
+                await bot.send_sticker(chat_id, sticker_id)
+                await asyncio.sleep(0.70)  # throttle per chat
+                return True
+            except RetryAfter as e:
+                wait_s = float(getattr(e, "retry_after", 2.0))
+                await asyncio.sleep(wait_s + 0.6)
+            except (TimedOut, NetworkError):
+                await asyncio.sleep(0.9 + attempt * 0.25)
+            except Exception:
+                await asyncio.sleep(0.8 + attempt * 0.2)
+        return False
+
+
+async def send_sticker_sequence(bot, chat_id: int, stickers: List[str]) -> None:
+    for s in stickers:
+        await send_sticker_priority(bot, chat_id, s)
+
+
+# =========================
+# ✅ PREDICTION ENGINE (YOUR FINAL LOGIC)
 # =========================
 class PredictionEngine:
     def __init__(self):
         self.history: List[str] = []
         self.raw_history: List[dict] = []
         self.last_prediction: Optional[str] = None
-        self.zigzag_mode: bool = False  # keep for UI
+        self.zigzag_mode: bool = False
 
     def update_history(self, issue_data: dict):
         try:
@@ -156,33 +195,27 @@ class PredictionEngine:
             self.history = self.history[:200]
             self.raw_history = self.raw_history[:200]
 
-    def _seed_predict(self, seed: int) -> str:
-        """
-        EXACT SAME LOGIC as your HTML:
-          hash = sin(seed*9999)*10000
-          isBig = floor(abs(hash)) % 2 == 0
-        """
-        import math
-        h = math.sin(seed * 9999) * 10000
-        is_big = (int(abs(h)) % 2) == 0
-        return "BIG" if is_big else "SMALL"
+    def _detect_zigzag_mood(self) -> bool:
+        """B-S-B অথবা S-B-S যেকোনো মুড শনাক্ত করবে"""
+        if len(self.history) < 3:
+            return False
 
-    def get_pattern_signal(self, next_issue: str, streak_loss: int) -> str:
-        """
-        Seed-based prediction using next_issue number.
-        (rest of bot remains unchanged)
-        """
-        try:
-            seed = int(next_issue)
-        except Exception:
-            seed = int(time.time())
+        h0, h1, h2 = self.history[0], self.history[1], self.history[2]
+        return (h0 != h1) and (h1 != h2)
 
-        prediction = self._seed_predict(seed)
+    def get_pattern_signal(self, streak_loss: int) -> str:
+        last_result = self.history[0] if self.history else "BIG"
 
-        # Keep UI mode simple
-        self.zigzag_mode = False
+        if self._detect_zigzag_mood():
+            self.zigzag_mode = True
+            prediction = "SMALL" if last_result == "BIG" else "BIG"
+        else:
+            self.zigzag_mode = False
+            prediction = last_result
 
-        # (Optional) you can still adjust on streak_loss if you want, but you asked same logic
+        if streak_loss > 0:
+            prediction = last_result
+
         self.last_prediction = prediction
         return prediction
 
@@ -192,9 +225,9 @@ class PredictionEngine:
 
 
 # =========================
-# API FETCH
+# API FETCH (FIXED: return list, not only list[0])
 # =========================
-def _fetch_latest_issue_sync() -> Optional[dict]:
+def _fetch_latest_list_sync() -> List[dict]:
     payload = {
         "pageSize": 10,
         "pageNo": 1,
@@ -214,15 +247,15 @@ def _fetch_latest_issue_sync() -> Optional[dict]:
         r = requests.post(API_URL, json=payload, headers=headers, timeout=FETCH_TIMEOUT)
         if r.status_code == 200:
             data = r.json()
-            if data and "data" in data and "list" in data["data"] and data["data"]["list"]:
-                return data["data"]["list"][0]
+            lst = (((data or {}).get("data") or {}).get("list") or [])
+            return [x for x in lst if isinstance(x, dict)]
     except Exception as e:
         print("API Error:", e)
-    return None
+    return []
 
 
-async def fetch_latest_issue() -> Optional[dict]:
-    return await asyncio.to_thread(_fetch_latest_issue_sync)
+async def fetch_latest_list() -> List[dict]:
+    return await asyncio.to_thread(_fetch_latest_list_sync)
 
 
 # =========================
@@ -402,13 +435,11 @@ def msg_session_close(cfg: ChannelConfig, wins: int, losses: int) -> str:
 
 
 # =========================
-# SEND HELPERS
+# SEND HELPERS (EDITED: sticker priority)
 # =========================
 async def send_sticker(bot, chat_id: int, sticker_id: str):
-    try:
-        await bot.send_sticker(chat_id, sticker_id)
-    except Exception:
-        pass
+    # ✅ priority + retry + flood wait
+    await send_sticker_priority(bot, chat_id, sticker_id)
 
 
 async def send_html(bot, chat_id: int, text: str) -> Optional[int]:
@@ -625,7 +656,7 @@ async def checking_spinner_task(bot, chat_id: int, issue: str, msg_id: int, my_s
 
 
 # =========================
-# ENGINE LOOP (FLOW FIXED)
+# ENGINE LOOP (FIXED: correct result match + stickers priority)
 # =========================
 async def engine_loop(app_: Application, my_session: int):
     cfg = state.channels.get(state.current_channel_key or "MAIN")
@@ -640,28 +671,40 @@ async def engine_loop(app_: Application, my_session: int):
         if state.stop_event.is_set():
             break
 
-        latest_data = await fetch_latest_issue()
+        items = await fetch_latest_list()
+        if not items:
+            await asyncio.sleep(0.7)
+            continue
 
-        if latest_data:
-            state.engine.update_history(latest_data)
+        latest_data = items[0]
+        state.engine.update_history(latest_data)
 
-            latest_issue = str(latest_data.get("issueNumber"))
-            latest_num = str(latest_data.get("number"))
-            latest_type = "BIG" if int(latest_num) >= 5 else "SMALL"
+        latest_issue = str(latest_data.get("issueNumber"))
+        latest_num = str(latest_data.get("number"))
+        latest_type = "BIG" if int(latest_num) >= 5 else "SMALL"
 
-            # A) RESULT FEEDBACK
-            if state.active and state.active.predicted_issue == latest_issue:
+        # A) RESULT FEEDBACK (FIXED: match active.predicted_issue inside last 10 list)
+        if state.active:
+            want_issue = str(state.active.predicted_issue)
+            matched = None
+            for it in items:
+                if str(it.get("issueNumber")) == want_issue:
+                    matched = it
+                    break
+
+            if matched:
+                res_num = str(matched.get("number"))
+                res_type = "BIG" if int(res_num) >= 5 else "SMALL"
                 pick = state.active.pick
-                is_win = (pick == latest_type)
+                is_win = (pick == res_type)
 
                 if state.active.checking_task:
                     state.active.checking_task.cancel()
 
-                # delete checking msg first
                 if state.active.checking_msg_id:
                     await delete_msg(bot, chat_id, state.active.checking_msg_id)
 
-                # win/loss sticker
+                # sticker priority
                 if is_win:
                     state.wins += 1
                     state.streak_win += 1
@@ -677,11 +720,10 @@ async def engine_loop(app_: Application, my_session: int):
                     state.streak_win = 0
                     await send_sticker(bot, chat_id, STICKERS["LOSS"])
 
-                # feedback message after sticker
                 await send_html(
                     bot,
                     chat_id,
-                    msg_result(latest_issue, latest_num, latest_type, pick, state.wins, state.losses, is_win),
+                    msg_result(want_issue, res_num, res_type, pick, state.wins, state.losses, is_win),
                 )
 
                 state.active = None
@@ -694,47 +736,50 @@ async def engine_loop(app_: Application, my_session: int):
                     await stop_session(app_, reason="graceful_done")
                     break
 
-            # B) SEND NEXT PREDICTION (once per next_issue)
-            try:
-                next_issue = str(int(latest_issue) + 1)
-            except Exception:
-                next_issue = None
+        # B) SEND NEXT PREDICTION (once per next_issue)
+        try:
+            next_issue = str(int(latest_issue) + 1)
+        except Exception:
+            next_issue = None
 
-            if (not state.active) and next_issue and (next_issue != last_predicted_issue_sent):
-                if state.streak_loss >= MAX_RECOVERY_STEPS:
-                    await send_html(bot, chat_id, f"🧯 <b>SAFETY STOP</b>\n<i>Recovery limit reached.</i>\n━━━━━━━━━━━━━━━━━━\n{footer_line()}")
-                    await stop_session(app_, reason="max_steps")
-                    break
-
-                # ✅ CHANGED: seed-based prediction using next_issue (HTML style)
-                pred = state.engine.get_pattern_signal(next_issue, state.streak_loss)
-                conf = state.engine.calc_confidence(state.streak_loss)
-
-                # 1) Prediction sticker
-                await send_sticker(bot, chat_id, pred_sticker_for(pred))
-
-                # 2) Prediction message
-                pred_msg_id = await send_html(
+        if (not state.active) and next_issue and (next_issue != last_predicted_issue_sent):
+            if state.streak_loss >= MAX_RECOVERY_STEPS:
+                await send_html(
                     bot,
                     chat_id,
-                    msg_signal(next_issue, pred, conf, state.streak_loss, state.engine.zigzag_mode),
+                    f"🧯 <b>SAFETY STOP</b>\n<i>Recovery limit reached.</i>\n━━━━━━━━━━━━━━━━━━\n{footer_line()}",
                 )
+                await stop_session(app_, reason="max_steps")
+                break
 
-                # 3) Checking message (animated)
-                checking_id = await send_html(bot, chat_id, msg_checking(next_issue, "🕛", "."))
+            pred = state.engine.get_pattern_signal(state.streak_loss)
+            conf = state.engine.calc_confidence(state.streak_loss)
 
-                state.active = ActiveBet(
-                    predicted_issue=next_issue,
-                    pick=pred,
-                    pred_msg_id=pred_msg_id,
-                    checking_msg_id=checking_id,
+            # 1) Prediction sticker
+            await send_sticker(bot, chat_id, pred_sticker_for(pred))
+
+            # 2) Prediction message
+            pred_msg_id = await send_html(
+                bot,
+                chat_id,
+                msg_signal(next_issue, pred, conf, state.streak_loss, state.engine.zigzag_mode),
+            )
+
+            # 3) Checking message (animated)
+            checking_id = await send_html(bot, chat_id, msg_checking(next_issue, "🕛", "."))
+
+            state.active = ActiveBet(
+                predicted_issue=next_issue,
+                pick=pred,
+                pred_msg_id=pred_msg_id,
+                checking_msg_id=checking_id,
+            )
+            last_predicted_issue_sent = next_issue
+
+            if checking_id:
+                state.active.checking_task = asyncio.create_task(
+                    checking_spinner_task(bot, chat_id, next_issue, checking_id, my_session)
                 )
-                last_predicted_issue_sent = next_issue
-
-                if checking_id:
-                    state.active.checking_task = asyncio.create_task(
-                        checking_spinner_task(bot, chat_id, next_issue, checking_id, my_session)
-                    )
 
         await asyncio.sleep(0.7)
 
