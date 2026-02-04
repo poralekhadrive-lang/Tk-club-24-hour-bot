@@ -25,7 +25,7 @@ from telegram.ext import (
 # =========================
 # CONFIG
 # =========================
-BOT_TOKEN = "8456002611:AAEvhsMJFXFuc0OYZCJhQ9WRKyUvryrfsso"
+BOT_TOKEN = "8456002611:AAEvhsMJFXFuc0OYZCJhQ9WRKyUvryrfsso"  # <-- তোমার আসল টোকেন এখানে বসাও (আগেরটা কপি করে)
 
 OWNER_USERNAME = "@OWNER_MARUF_TOP"
 OWNER_LINK = "https://t.me/OWNER_MARUF_TOP"
@@ -145,7 +145,7 @@ class PredictionEngine:
         # h0 = বর্তমান, h1 = আগেরটা, h2 = তার আগেরটা
         h0, h1, h2 = self.history[0], self.history[1], self.history[2]
 
-        # যদি বর্তমানটা আগেরটার উল্টা হয় এবং আগেরটা তার আগেরটার উল্টা হয় (B-S-B বা S-B-S)
+        # যদি বর্তমানটা আগেরটার উল্টা হয় এবং আগেরটা তার আগেরটার উল্টা হয় (B-S-B বা S-B-S)
         return (h0 != h1) and (h1 != h2)
 
     def get_pattern_signal(self, streak_loss: int) -> str:
@@ -157,13 +157,12 @@ class PredictionEngine:
             # জিকজ্যাক মুডে থাকলে লাস্ট রেজাল্টের উল্টা প্রেডিকশন দেবে
             prediction = "SMALL" if last_result == "BIG" else "BIG"
 
-        # ২. অন্য সব সময় মার্কেটকে হুবহু কপি করবে
+        # ২. অন্য সব সময় মার্কেটকে হুবহু কপি করবে
         else:
             self.zigzag_mode = False
             prediction = last_result
 
-        # ৩. সেফটি গার্ড: যদি কপি করতে গিয়ে লস হয়, সাথে সাথে আবার লাস্ট রেজাল্ট কপি করবে
-        # এতে করে লম্বা ট্রেন্ডে লস হওয়ার চান্স থাকবে না
+        # ৩. সেফটি গার্ড: যদি কপি করতে গিয়ে লস হয়, সাথে সাথে আবার লাস্ট রেজাল্ট কপি করবে
         if streak_loss > 0:
             prediction = last_result
 
@@ -272,7 +271,8 @@ class ChannelConfig:
 class ActiveBet:
     predicted_issue: str
     pick: str
-    analyzing_msg_id: Optional[int] = None
+    # --- message ids for clean flow ---
+    pred_msg_id: Optional[int] = None
     checking_msg_id: Optional[int] = None
     checking_task: Optional[asyncio.Task] = None
 
@@ -327,15 +327,6 @@ def msg_signal(issue: str, pick: str, conf: int, streak_loss: int, zigzag: bool)
         f"{mode}\n"
         f"🎯 <b>PICK:</b> {badge(pick)}\n"
         f"✨ <b>CONF:</b> <b>{conf}%</b>  |  🧠 <b>REC:</b> <b>{streak_loss}/{MAX_RECOVERY_STEPS}</b>\n"
-        f"⏱ <b>{now_bd_str()}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"{footer_line()}"
-    )
-
-def msg_analyzing(issue: str) -> str:
-    return (
-        f"📡 <b>MARKET ANALYZING...</b>\n"
-        f"🧾 <b>PERIOD:</b> <code>{issue}</code>\n"
         f"⏱ <b>{now_bd_str()}</b>\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"{footer_line()}"
@@ -566,8 +557,6 @@ async def stop_session(app_: Application, reason: str = "manual"):
     if state.active:
         if state.active.checking_task:
             state.active.checking_task.cancel()
-        if state.active.analyzing_msg_id:
-            await delete_msg(app_.bot, cfg.chat_id, state.active.analyzing_msg_id)
         if state.active.checking_msg_id:
             await delete_msg(app_.bot, cfg.chat_id, state.active.checking_msg_id)
         state.active = None
@@ -588,7 +577,7 @@ async def checking_spinner_task(bot, chat_id: int, issue: str, msg_id: int, my_s
         await asyncio.sleep(1.1)
 
 # =========================
-# ENGINE LOOP (STICKER FLOW FIXED)
+# ENGINE LOOP (FLOW FIXED EXACTLY AS YOU SAID)
 # =========================
 async def engine_loop(app_: Application, my_session: int):
     cfg = state.channels.get(state.current_channel_key or "MAIN")
@@ -617,14 +606,15 @@ async def engine_loop(app_: Application, my_session: int):
                 pick = state.active.pick
                 is_win = (pick == latest_type)
 
+                # stop spinner first
                 if state.active.checking_task:
                     state.active.checking_task.cancel()
 
-                if state.active.analyzing_msg_id:
-                    await delete_msg(bot, chat_id, state.active.analyzing_msg_id)
+                # delete checking message BEFORE sending win/loss sticker (your requirement)
                 if state.active.checking_msg_id:
                     await delete_msg(bot, chat_id, state.active.checking_msg_id)
 
+                # win/loss sticker
                 if is_win:
                     state.wins += 1
                     state.streak_win += 1
@@ -640,6 +630,7 @@ async def engine_loop(app_: Application, my_session: int):
                     state.streak_win = 0
                     await send_sticker(bot, chat_id, STICKERS["LOSS"])
 
+                # feedback/result message AFTER sticker (your requirement)
                 await send_html(
                     bot,
                     chat_id,
@@ -673,26 +664,26 @@ async def engine_loop(app_: Application, my_session: int):
                 pred = state.engine.get_pattern_signal(state.streak_loss)
                 conf = state.engine.calc_confidence(state.streak_loss)
 
-                # ✅ Prediction sticker fixed (before message)
+                # ✅ 1) Prediction sticker
                 await send_sticker(bot, chat_id, pred_sticker_for(pred))
-                await send_html(bot, chat_id, msg_signal(next_issue, pred, conf, state.streak_loss, state.engine.zigzag_mode))
 
-                # ✅ 10s analyzing
-                analyzing_id = await send_html(bot, chat_id, msg_analyzing(next_issue))
-                state.active = ActiveBet(predicted_issue=next_issue, pick=pred, analyzing_msg_id=analyzing_id)
-                last_predicted_issue_sent = next_issue
+                # ✅ 2) Prediction message
+                pred_msg_id = await send_html(
+                    bot,
+                    chat_id,
+                    msg_signal(next_issue, pred, conf, state.streak_loss, state.engine.zigzag_mode),
+                )
 
-                await asyncio.sleep(10)
-
-                if not (state.running and state.session_id == my_session and state.active and state.active.predicted_issue == next_issue):
-                    continue
-
-                if state.active.analyzing_msg_id:
-                    await delete_msg(bot, chat_id, state.active.analyzing_msg_id)
-                    state.active.analyzing_msg_id = None
-
+                # ✅ 3) Checking message (animated) immediately AFTER prediction msg
                 checking_id = await send_html(bot, chat_id, msg_checking(next_issue, "🕛", "."))
-                state.active.checking_msg_id = checking_id
+
+                state.active = ActiveBet(
+                    predicted_issue=next_issue,
+                    pick=pred,
+                    pred_msg_id=pred_msg_id,
+                    checking_msg_id=checking_id,
+                )
+                last_predicted_issue_sent = next_issue
 
                 if checking_id:
                     state.active.checking_task = asyncio.create_task(
@@ -756,7 +747,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not state.unlocked:
-        await update.message.reply_text("🔒 <b>LOCKED</b>\n/start দিয়ে unlock করুন", parse_mode=ParseMode.HTML)
+        await update.message.reply_text("🔒 <b>LOCKED</b>\n/start দিয়ে unlock করুন", parse_mode=ParseMode.HTML)
         return
     await ensure_panel(context.bot, update.effective_chat.id)
 
