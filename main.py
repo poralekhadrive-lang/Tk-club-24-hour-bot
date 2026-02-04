@@ -133,14 +133,14 @@ def result_emoji(res_type: str) -> str:
 CLOCK_SPIN = ["🕛", "🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚"]
 
 # =========================
-# ✅ PREDICTION ENGINE (YOUR FINAL LOGIC)
+# ✅ PREDICTION ENGINE (SEED-BASED: SAME AS YOUR HTML LOGIC)
 # =========================
 class PredictionEngine:
     def __init__(self):
         self.history: List[str] = []
         self.raw_history: List[dict] = []
         self.last_prediction: Optional[str] = None
-        self.zigzag_mode: bool = False
+        self.zigzag_mode: bool = False  # keep for UI
 
     def update_history(self, issue_data: dict):
         try:
@@ -156,27 +156,33 @@ class PredictionEngine:
             self.history = self.history[:200]
             self.raw_history = self.raw_history[:200]
 
-    def _detect_zigzag_mood(self) -> bool:
-        """B-S-B অথবা S-B-S যেকোনো মুড শনাক্ত করবে"""
-        if len(self.history) < 3:
-            return False
+    def _seed_predict(self, seed: int) -> str:
+        """
+        EXACT SAME LOGIC as your HTML:
+          hash = sin(seed*9999)*10000
+          isBig = floor(abs(hash)) % 2 == 0
+        """
+        import math
+        h = math.sin(seed * 9999) * 10000
+        is_big = (int(abs(h)) % 2) == 0
+        return "BIG" if is_big else "SMALL"
 
-        h0, h1, h2 = self.history[0], self.history[1], self.history[2]
-        return (h0 != h1) and (h1 != h2)
+    def get_pattern_signal(self, next_issue: str, streak_loss: int) -> str:
+        """
+        Seed-based prediction using next_issue number.
+        (rest of bot remains unchanged)
+        """
+        try:
+            seed = int(next_issue)
+        except Exception:
+            seed = int(time.time())
 
-    def get_pattern_signal(self, streak_loss: int) -> str:
-        last_result = self.history[0] if self.history else "BIG"
+        prediction = self._seed_predict(seed)
 
-        if self._detect_zigzag_mood():
-            self.zigzag_mode = True
-            prediction = "SMALL" if last_result == "BIG" else "BIG"
-        else:
-            self.zigzag_mode = False
-            prediction = last_result
+        # Keep UI mode simple
+        self.zigzag_mode = False
 
-        if streak_loss > 0:
-            prediction = last_result
-
+        # (Optional) you can still adjust on streak_loss if you want, but you asked same logic
         self.last_prediction = prediction
         return prediction
 
@@ -700,7 +706,8 @@ async def engine_loop(app_: Application, my_session: int):
                     await stop_session(app_, reason="max_steps")
                     break
 
-                pred = state.engine.get_pattern_signal(state.streak_loss)
+                # ✅ CHANGED: seed-based prediction using next_issue (HTML style)
+                pred = state.engine.get_pattern_signal(next_issue, state.streak_loss)
                 conf = state.engine.calc_confidence(state.streak_loss)
 
                 # 1) Prediction sticker
