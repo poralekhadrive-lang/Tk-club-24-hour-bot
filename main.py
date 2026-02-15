@@ -24,21 +24,12 @@ from telegram.ext import (
 from telegram.error import RetryAfter, TimedOut, NetworkError
 
 # =========================
-# CONFIG (✅ TOKEN INSIDE CODE)
+# CONFIG (TOKEN INSIDE CODE)
 # =========================
-# ✅ ONLY paste your token here:
-HARDCODED_BOT_TOKEN = "8456002611:AAHsSlu_bv1iVqKuTLjIb0BNvUpxJiBo1p8"
+BOT_TOKEN = "8456002611:AAHsSlu_bv1iVqKuTLjIb0BNvUpxJiBo1p8"  # ✅ hardcoded (env ignored)
 
-def load_bot_token() -> str:
-    # If you ever set Render env BOT_TOKEN, it will override this hardcoded token.
-    env_token = (os.environ.get("BOT_TOKEN") or "").strip()
-    if env_token:
-        return env_token
-    return (HARDCODED_BOT_TOKEN or "").strip()
-
-BOT_TOKEN = load_bot_token()
-if not BOT_TOKEN or BOT_TOKEN == "8456002611:AAHsSlu_bv1iVqKuTLjIb0BNvUpxJiBo1p8":
-    raise RuntimeError("❌ BOT_TOKEN not set. Paste it into HARDCODED_BOT_TOKEN.")
+if not BOT_TOKEN or ":" not in BOT_TOKEN:
+    raise RuntimeError("❌ BOT_TOKEN invalid or empty")
 
 OWNER_USERNAME = "@OWNER_MARUF_TOP"
 OWNER_LINK = "https://t.me/OWNER_MARUF_TOP"
@@ -61,9 +52,6 @@ TARGETS = {
     "PUBLIC": -1003034758076,
 }
 
-# =========================
-# STICKERS
-# =========================
 STICKERS = {
     "SESSION_START": "CAACAgUAAxkBAAEQYyFpfc4wbxDAkFww3cpExFCaz1iDbQACoB0AAhxruVZktiP7rGZdATgE",
     "SESSION_CLOSE": "CAACAgUAAxkBAAEQYyJpfc4wO83n6lkaDSMVxxFDzq6erwACaB4AAkbvuFbNxjX-zft8RzgE",
@@ -89,20 +77,16 @@ STICKERS = {
 # =========================
 app = Flask("")
 
-
 @app.route("/")
 def home():
     return "ALIVE"
-
 
 def run_http():
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
 
-
 def keep_alive():
     Thread(target=run_http, daemon=True).start()
-
 
 # =========================
 # UTILS
@@ -110,14 +94,11 @@ def keep_alive():
 def now_bd() -> datetime:
     return datetime.now(BD_TZ)
 
-
 def now_bd_str() -> str:
     return now_bd().strftime("%I:%M:%S %p")
 
-
 def fmt_owner() -> str:
     return f"<a href='{OWNER_LINK}'>{OWNER_USERNAME}</a>"
-
 
 def footer_line() -> str:
     return (
@@ -125,42 +106,33 @@ def footer_line() -> str:
         f"📣 <a href='{CHANNEL_LINK}'>VIP Channel</a>  |  🧾 <a href='{REG_LINK}'>Open Account</a>  |  👤 {fmt_owner()}"
     )
 
-
 def fancy_bs(t: str) -> str:
     t = (t or "").upper()
-    if t == "BIG":
-        return "🇧 🇮 🇬"
-    if t == "SMALL":
-        return "🇸 🇲 🇦 🇱 🇱"
+    if t == "BIG": return "🇧 🇮 🇬"
+    if t == "SMALL": return "🇸 🇲 🇦 🇱 🇱"
     return t
-
 
 def badge(pick: str) -> str:
     return "🟢 <b>🇧 🇮 🇬</b>" if pick == "BIG" else "🔴 <b>🇸 🇲 🇦 🇱 🇱</b>"
 
-
 def result_emoji(res_type: str) -> str:
     return "🟢" if res_type == "BIG" else "🔴"
 
-
-CLOCK_SPIN = ["🕛", "🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚"]
+CLOCK_SPIN = ["🕛","🕐","🕑","🕒","🕓","🕔","🕕","🕖","🕗","🕘","🕙","🕚"]
 
 # =========================
-# ✅ STICKER PRIORITY QUEUE
+# STICKER PRIORITY QUEUE
 # =========================
 _chat_locks: Dict[int, asyncio.Lock] = {}
-
 
 def _lock_for(chat_id: int) -> asyncio.Lock:
     if chat_id not in _chat_locks:
         _chat_locks[chat_id] = asyncio.Lock()
     return _chat_locks[chat_id]
 
-
 async def send_sticker_priority(bot, chat_id: int, sticker_id: str, tries: int = 7) -> bool:
     if not sticker_id:
         return False
-
     lock = _lock_for(chat_id)
     async with lock:
         for attempt in range(tries):
@@ -177,22 +149,18 @@ async def send_sticker_priority(bot, chat_id: int, sticker_id: str, tries: int =
                 await asyncio.sleep(0.8 + attempt * 0.2)
         return False
 
-
-async def send_sticker_sequence(bot, chat_id: int, stickers: List[str]) -> None:
-    for s in stickers:
-        await send_sticker_priority(bot, chat_id, s)
-
+async def send_sticker(bot, chat_id: int, sticker_id: str):
+    await send_sticker_priority(bot, chat_id, sticker_id)
 
 # =========================
-# ✅ PREDICTION ENGINE (HUBUHU)
+# ✅ PREDICTION ENGINE (HUBUHU YOUR LOGIC)
 # =========================
 class PredictionEngine:
     def __init__(self):
-        self.history: List[str] = []  # ['BIG', 'SMALL', ...]
-        self.raw_history: List[int] = []  # [7, 2, 9, ...]
+        self.history: List[str] = []
+        self.raw_history: List[int] = []
         self.zigzag_threshold = 3
         self.last_period = None
-
         self.last_pattern: str = "NORMAL"
         self.zigzag_mode: bool = False
 
@@ -200,12 +168,10 @@ class PredictionEngine:
         try:
             num = int(issue_data["number"])
             res_type = "BIG" if num >= 5 else "SMALL"
-
             if (self.last_period is None) or (self.last_period != issue_data.get("issueNumber")):
                 self.history.insert(0, res_type)
                 self.raw_history.insert(0, num)
                 self.last_period = issue_data.get("issueNumber")
-
                 self.history = self.history[:100]
                 self.raw_history = self.raw_history[:100]
         except Exception:
@@ -215,9 +181,11 @@ class PredictionEngine:
         if len(self.history) < 5:
             return "NORMAL"
 
+        # DRAGON: same result 4 times
         if all(x == self.history[0] for x in self.history[:4]):
             return "DRAGON"
 
+        # ZIGZAG: alternating
         zigzag_count = 0
         for i in range(len(self.history) - 1):
             if self.history[i] != self.history[i + 1]:
@@ -255,7 +223,6 @@ class PredictionEngine:
         conf = random.randint(93, 97)
         return max(45, conf - (streak_loss * 8))
 
-
 # =========================
 # API FETCH
 # =========================
@@ -285,10 +252,8 @@ def _fetch_latest_list_sync() -> List[dict]:
         print("API Error:", e)
     return []
 
-
 async def fetch_latest_list() -> List[dict]:
     return await asyncio.to_thread(_fetch_latest_list_sync)
-
 
 # =========================
 # TIME PRESETS
@@ -302,7 +267,6 @@ SCHEDULE_PRESETS = [
     ("EVE_07", "🕖 সন্ধ্যা: 07:00 PM ➜ 07:30 PM", "07:00PM-07:30PM"),
 ]
 
-
 def parse_time_window(txt: str) -> Optional[Tuple[int, int]]:
     try:
         raw = txt.strip().upper().replace(" ", "")
@@ -312,14 +276,11 @@ def parse_time_window(txt: str) -> Optional[Tuple[int, int]]:
             ampm = t[-2:]
             hm = t[:-2]
             hh, mm = hm.split(":")
-            hh = int(hh)
-            mm = int(mm)
+            hh = int(hh); mm = int(mm)
             if ampm == "AM":
-                if hh == 12:
-                    hh = 0
+                if hh == 12: hh = 0
             else:
-                if hh != 12:
-                    hh += 12
+                if hh != 12: hh += 12
             return hh * 60 + mm
 
         start = to_min(a)
@@ -329,7 +290,6 @@ def parse_time_window(txt: str) -> Optional[Tuple[int, int]]:
         return (start, end)
     except Exception:
         return None
-
 
 def minutes_to_ampm(m: int) -> str:
     hh = m // 60
@@ -341,7 +301,6 @@ def minutes_to_ampm(m: int) -> str:
     if h12 == 0:
         h12 = 12
     return f"{h12}:{mm:02d}{ampm}"
-
 
 # =========================
 # DATA CLASSES
@@ -355,7 +314,6 @@ class ChannelConfig:
     window_min: Optional[Tuple[int, int]] = None
     win_target: int = 0
 
-
 @dataclass
 class ActiveBet:
     predicted_issue: str
@@ -363,7 +321,6 @@ class ActiveBet:
     pred_msg_id: Optional[int] = None
     checking_msg_id: Optional[int] = None
     checking_task: Optional[asyncio.Task] = None
-
 
 @dataclass
 class BotState:
@@ -396,9 +353,7 @@ class BotState:
     streak_win: int = 0
     streak_loss: int = 0
 
-
 state = BotState()
-
 
 def init_channels():
     state.channels = {
@@ -406,7 +361,6 @@ def init_channels():
         "VIP": ChannelConfig("VIP", TARGETS["VIP"], "VIP"),
         "PUBLIC": ChannelConfig("PUBLIC", TARGETS["PUBLIC"], "PUBLIC"),
     }
-
 
 # =========================
 # MESSAGE TEMPLATES
@@ -424,7 +378,6 @@ def msg_signal(issue: str, pick: str, conf: int, streak_loss: int, zigzag: bool)
         f"{footer_line()}"
     )
 
-
 def msg_checking(issue: str, spin: str, dots: str) -> str:
     return (
         f"{spin} <b>RESULT CHECKING{dots}</b>\n"
@@ -433,7 +386,6 @@ def msg_checking(issue: str, spin: str, dots: str) -> str:
         f"━━━━━━━━━━━━━━━━━━\n"
         f"{footer_line()}"
     )
-
 
 def msg_result(issue: str, res_num: str, res_type: str, pick: str, wins: int, losses: int, is_win: bool) -> str:
     head = "✅ <b>WIN</b>" if is_win else "❌ <b>LOSS</b>"
@@ -447,7 +399,6 @@ def msg_result(issue: str, res_num: str, res_type: str, pick: str, wins: int, lo
         f"━━━━━━━━━━━━━━━━━━\n"
         f"{footer_line()}"
     )
-
 
 def msg_session_close(cfg: ChannelConfig, wins: int, losses: int) -> str:
     total = wins + losses
@@ -465,21 +416,15 @@ def msg_session_close(cfg: ChannelConfig, wins: int, losses: int) -> str:
         f"{footer_line()}"
     )
 
-
 # =========================
 # SEND HELPERS
 # =========================
-async def send_sticker(bot, chat_id: int, sticker_id: str):
-    await send_sticker_priority(bot, chat_id, sticker_id)
-
-
 async def send_html(bot, chat_id: int, text: str) -> Optional[int]:
     try:
         m = await bot.send_message(chat_id, text, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
         return m.message_id
     except Exception:
         return None
-
 
 async def edit_html(bot, chat_id: int, msg_id: int, text: str):
     try:
@@ -493,24 +438,20 @@ async def edit_html(bot, chat_id: int, msg_id: int, text: str):
     except Exception:
         pass
 
-
 async def delete_msg(bot, chat_id: int, msg_id: int):
     try:
         await bot.delete_message(chat_id=chat_id, message_id=msg_id)
     except Exception:
         pass
 
-
 def pred_sticker_for(pick: str) -> str:
     return STICKERS["PRED_BIG"] if pick == "BIG" else STICKERS["PRED_SMALL"]
-
 
 # =========================
 # PANEL UI
 # =========================
 def choose_channel_text() -> str:
     return "📌 <b>CHOOSE CHANNEL</b>\nকোন গ্রুপে চালাবেন সিলেক্ট করুন ✅"
-
 
 def choose_channel_markup() -> InlineKeyboardMarkup:
     rows = [
@@ -520,13 +461,11 @@ def choose_channel_markup() -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(rows)
 
-
 def preset_time_text() -> str:
     lines = ["🕘 <b>SELECT TIME</b>"]
     for _, label, _ in SCHEDULE_PRESETS:
         lines.append(label)
     return "\n".join(lines)
-
 
 def preset_time_markup() -> InlineKeyboardMarkup:
     rows = []
@@ -534,7 +473,6 @@ def preset_time_markup() -> InlineKeyboardMarkup:
         rows.append([InlineKeyboardButton(label, callback_data=f"TIME:{code}")])
     rows.append([InlineKeyboardButton("⬅️ Back", callback_data="TIME_BACK")])
     return InlineKeyboardMarkup(rows)
-
 
 def control_panel_text(cfg: ChannelConfig) -> str:
     status = "🟢 RUNNING" if state.running else "🔴 STOPPED"
@@ -556,7 +494,6 @@ def control_panel_text(cfg: ChannelConfig) -> str:
         f"👤 {fmt_owner()}"
     )
 
-
 def control_panel_markup() -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton("⏰ Schedule ON/OFF", callback_data="TOGGLE_SCHEDULE")],
@@ -569,7 +506,6 @@ def control_panel_markup() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("⬅️ Back", callback_data="BACK")],
     ]
     return InlineKeyboardMarkup(rows)
-
 
 async def render_panel(bot):
     if not state.admin_chat_id or not state.panel_message_id:
@@ -609,10 +545,8 @@ async def render_panel(bot):
     except Exception:
         pass
 
-
 async def ensure_panel(bot, chat_id: int):
     state.admin_chat_id = chat_id
-
     if state.panel_message_id:
         try:
             await bot.delete_message(chat_id=state.admin_chat_id, message_id=state.panel_message_id)
@@ -625,7 +559,6 @@ async def ensure_panel(bot, chat_id: int):
     state.menu_mode = "CHOOSE_CHANNEL"
     await render_panel(bot)
 
-
 # =========================
 # SESSION CONTROL
 # =========================
@@ -634,7 +567,6 @@ def reset_stats():
     state.losses = 0
     state.streak_win = 0
     state.streak_loss = 0
-
 
 async def start_session(app_: Application, started_by_schedule: bool):
     cfg = state.channels.get(state.current_channel_key or "MAIN")
@@ -651,7 +583,6 @@ async def start_session(app_: Application, started_by_schedule: bool):
     reset_stats()
 
     await send_sticker(app_.bot, cfg.chat_id, STICKERS["SESSION_START"])
-
 
 async def stop_session(app_: Application, reason: str = "manual"):
     cfg = state.channels.get(state.current_channel_key or "MAIN")
@@ -672,7 +603,6 @@ async def stop_session(app_: Application, reason: str = "manual"):
     await send_sticker(app_.bot, cfg.chat_id, STICKERS["SESSION_CLOSE"])
     await send_html(app_.bot, cfg.chat_id, msg_session_close(cfg, state.wins, state.losses))
 
-
 # =========================
 # CHECKING SPINNER
 # =========================
@@ -685,9 +615,13 @@ async def checking_spinner_task(bot, chat_id: int, issue: str, msg_id: int, my_s
         i += 1
         await asyncio.sleep(1.1)
 
-
 # =========================
-# ENGINE LOOP (✅ exact sequence)
+# ENGINE LOOP (ORDER YOU ASKED)
+# 1) pred sticker
+# 2) pred message
+# 3) checking msg
+# (result matched) -> delete checking -> win/loss sticker -> result message
+# next loop repeats
 # =========================
 async def engine_loop(app_: Application, my_session: int):
     cfg = state.channels.get(state.current_channel_key or "MAIN")
@@ -715,7 +649,6 @@ async def engine_loop(app_: Application, my_session: int):
         # A) RESULT FEEDBACK
         if state.active:
             want_issue = str(state.active.predicted_issue)
-
             matched = None
             for it in items:
                 if str(it.get("issueNumber")) == want_issue:
@@ -723,11 +656,10 @@ async def engine_loop(app_: Application, my_session: int):
                     break
 
             if matched:
-                # stop spinner first
                 if state.active.checking_task:
                     state.active.checking_task.cancel()
 
-                # ✅ delete checking message BEFORE win/loss (you asked)
+                # ✅ delete checking msg first
                 if state.active.checking_msg_id:
                     await delete_msg(bot, chat_id, state.active.checking_msg_id)
 
@@ -736,7 +668,7 @@ async def engine_loop(app_: Application, my_session: int):
                 pick = state.active.pick
                 is_win = (pick == res_type)
 
-                # sticker feedback
+                # feedback sticker
                 if is_win:
                     state.wins += 1
                     state.streak_win += 1
@@ -752,7 +684,7 @@ async def engine_loop(app_: Application, my_session: int):
                     state.streak_win = 0
                     await send_sticker(bot, chat_id, STICKERS["LOSS"])
 
-                # result message
+                # feedback message
                 await send_html(
                     bot,
                     chat_id,
@@ -816,7 +748,6 @@ async def engine_loop(app_: Application, my_session: int):
 
         await asyncio.sleep(0.7)
 
-
 # =========================
 # SCHEDULER LOOP
 # =========================
@@ -826,7 +757,6 @@ def is_now_in_window(cfg: ChannelConfig, now: datetime) -> bool:
     a, b = cfg.window_min
     mins = now.hour * 60 + now.minute
     return a <= mins < b
-
 
 async def scheduler_loop(app_: Application):
     while True:
@@ -859,7 +789,6 @@ async def scheduler_loop(app_: Application):
 
         await asyncio.sleep(5)
 
-
 # =========================
 # COMMANDS + INPUT HANDLER
 # =========================
@@ -869,16 +798,13 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     state.menu_mode = "CHOOSE_CHANNEL"
     state.current_channel_key = None
     state.waiting_channel_key = None
-
     await update.message.reply_text("🔒 <b>SYSTEM LOCKED</b>\n✅ Password দিন:", parse_mode=ParseMode.HTML)
-
 
 async def cmd_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not state.unlocked:
         await update.message.reply_text("🔒 <b>LOCKED</b>\n/start দিয়ে unlock করুন", parse_mode=ParseMode.HTML)
         return
     await ensure_panel(context.bot, update.effective_chat.id)
-
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     txt = (update.message.text or "").strip()
@@ -909,7 +835,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Win Target Set Done.")
         await render_panel(context.bot)
         return
-
 
 # =========================
 # CALLBACKS
@@ -1016,13 +941,11 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await render_panel(context.bot)
         return
 
-
 # =========================
 # POST INIT
 # =========================
 async def post_init(app_: Application):
     app_.create_task(scheduler_loop(app_))
-
 
 # =========================
 # MAIN
@@ -1045,7 +968,6 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
     application.run_polling(close_loop=False)
-
 
 if __name__ == "__main__":
     main()
