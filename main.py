@@ -24,13 +24,21 @@ from telegram.ext import (
 from telegram.error import RetryAfter, TimedOut, NetworkError
 
 # =========================
-# CONFIG
+# CONFIG (✅ TOKEN INSIDE CODE)
 # =========================
-# ⚠️ SECURITY: Never hardcode token in public.
-# Set env: BOT_TOKEN="xxxx" then run.
-BOT_TOKEN = os.environ.get("8456002611:AAHsSlu_bv1iVqKuTLjIb0BNvUpxJiBo1p8", "").strip()
-if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN env var not set. Set BOT_TOKEN and restart.")
+# ✅ ONLY paste your token here:
+HARDCODED_BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE"
+
+def load_bot_token() -> str:
+    # If you ever set Render env BOT_TOKEN, it will override this hardcoded token.
+    env_token = (os.environ.get("BOT_TOKEN") or "").strip()
+    if env_token:
+        return env_token
+    return (HARDCODED_BOT_TOKEN or "").strip()
+
+BOT_TOKEN = load_bot_token()
+if not BOT_TOKEN or BOT_TOKEN == "8456002611:AAHsSlu_bv1iVqKuTLjIb0BNvUpxJiBo1p8":
+    raise RuntimeError("❌ BOT_TOKEN not set. Paste it into HARDCODED_BOT_TOKEN.")
 
 OWNER_USERNAME = "@OWNER_MARUF_TOP"
 OWNER_LINK = "https://t.me/OWNER_MARUF_TOP"
@@ -97,7 +105,7 @@ def keep_alive():
 
 
 # =========================
-# UTILS (CLEAN)
+# UTILS
 # =========================
 def now_bd() -> datetime:
     return datetime.now(BD_TZ)
@@ -158,7 +166,7 @@ async def send_sticker_priority(bot, chat_id: int, sticker_id: str, tries: int =
         for attempt in range(tries):
             try:
                 await bot.send_sticker(chat_id, sticker_id)
-                await asyncio.sleep(0.70)  # throttle per chat
+                await asyncio.sleep(0.70)
                 return True
             except RetryAfter as e:
                 wait_s = float(getattr(e, "retry_after", 2.0))
@@ -176,7 +184,7 @@ async def send_sticker_sequence(bot, chat_id: int, stickers: List[str]) -> None:
 
 
 # =========================
-# ✅ PREDICTION ENGINE (YOUR PROVIDED LOGIC - HUBUHU)
+# ✅ PREDICTION ENGINE (HUBUHU)
 # =========================
 class PredictionEngine:
     def __init__(self):
@@ -185,7 +193,6 @@ class PredictionEngine:
         self.zigzag_threshold = 3
         self.last_period = None
 
-        # UI hints
         self.last_pattern: str = "NORMAL"
         self.zigzag_mode: bool = False
 
@@ -194,13 +201,11 @@ class PredictionEngine:
             num = int(issue_data["number"])
             res_type = "BIG" if num >= 5 else "SMALL"
 
-            # ডুপ্লিকেট ডাটা এড়ানোর জন্য পিরিয়ড চেক
             if (self.last_period is None) or (self.last_period != issue_data.get("issueNumber")):
                 self.history.insert(0, res_type)
                 self.raw_history.insert(0, num)
                 self.last_period = issue_data.get("issueNumber")
 
-                # মেমোরি ক্লিনআপ (সর্বশেষ ১০০ ডাটা রাখবে)
                 self.history = self.history[:100]
                 self.raw_history = self.raw_history[:100]
         except Exception:
@@ -210,11 +215,9 @@ class PredictionEngine:
         if len(self.history) < 5:
             return "NORMAL"
 
-        # ১. ড্রাগন ট্রেন্ড ডিটেকশন (একই রেজাল্ট ৪ বারের বেশি)
         if all(x == self.history[0] for x in self.history[:4]):
             return "DRAGON"
 
-        # ২. জিকজ্যাক মুড ডিটেকশন (B-S-B-S)
         zigzag_count = 0
         for i in range(len(self.history) - 1):
             if self.history[i] != self.history[i + 1]:
@@ -235,37 +238,26 @@ class PredictionEngine:
         last_res = self.history[0]
         pattern = self._detect_pattern()
 
-        # লজিক ১: যদি ড্রাগন ট্রেন্ড থাকে (টানা ৪ বার বিগ/স্মল)
         if pattern == "DRAGON":
-            # ট্রেন্ডের সাথে থাকাই বুদ্ধিমানের কাজ
             prediction = last_res
-
-        # লজিক ২: যদি জিকজ্যাক মুড থাকে (B-S-B-S)
         elif pattern == "ZIGZAG":
-            # জিকজ্যাক মুড ভাঙ্গার সম্ভাবনা কম থাকলে উল্টোটা দিন
             prediction = "SMALL" if last_res == "BIG" else "BIG"
-
-        # লজিক ৩: যখন মার্কেট ট্র্যাপ করে (টানা লস হচ্ছে)
         elif streak_loss >= 2:
-            # ট্র্যাপ থেকে বাঁচতে লাস্ট রেজাল্টের উল্টোটা দিয়ে রিস্ক নিন
             prediction = "SMALL" if last_res == "BIG" else "BIG"
-
-        # লজিক ৪: নরমাল মার্কেট (বেস্ট ম্যাথমেটিক্যাল এভারেজ)
         else:
-            prediction = last_res  # ট্রেন্ড ফলো করা ভালো
+            prediction = last_res
 
         self.last_pattern = pattern
         self.zigzag_mode = (pattern == "ZIGZAG")
         return prediction
 
     def calc_confidence(self, streak_loss: int) -> int:
-        # লস বাড়লে কনফিডেন্স কমান যাতে ইউজাররা কম টাকা লাগায়
         conf = random.randint(93, 97)
         return max(45, conf - (streak_loss * 8))
 
 
 # =========================
-# API FETCH (return list)
+# API FETCH
 # =========================
 def _fetch_latest_list_sync() -> List[dict]:
     payload = {
@@ -417,10 +409,9 @@ def init_channels():
 
 
 # =========================
-# CLEAN MESSAGE TEMPLATES
+# MESSAGE TEMPLATES
 # =========================
 def msg_signal(issue: str, pick: str, conf: int, streak_loss: int, zigzag: bool) -> str:
-    # UI: zigzag true হলে zigzag, নাহলে normal
     mode = "⚡ <b>ZIGZAG</b>" if zigzag else "✅ <b>NORMAL</b>"
     return (
         f"🔥 <b>VIP SIGNAL</b>\n"
@@ -696,7 +687,7 @@ async def checking_spinner_task(bot, chat_id: int, issue: str, msg_id: int, my_s
 
 
 # =========================
-# ENGINE LOOP (Sequence fixed exactly as you asked)
+# ENGINE LOOP (✅ exact sequence)
 # =========================
 async def engine_loop(app_: Application, my_session: int):
     cfg = state.channels.get(state.current_channel_key or "MAIN")
@@ -720,9 +711,8 @@ async def engine_loop(app_: Application, my_session: int):
         state.engine.update_history(latest_data)
 
         latest_issue = str(latest_data.get("issueNumber"))
-        latest_num = str(latest_data.get("number"))
 
-        # A) RESULT FEEDBACK: when active issue appears inside last 10 list
+        # A) RESULT FEEDBACK
         if state.active:
             want_issue = str(state.active.predicted_issue)
 
@@ -733,11 +723,11 @@ async def engine_loop(app_: Application, my_session: int):
                     break
 
             if matched:
-                # --- stop spinner task first ---
+                # stop spinner first
                 if state.active.checking_task:
                     state.active.checking_task.cancel()
 
-                # --- DELETE checking message BEFORE feedback (as per your flow) ---
+                # ✅ delete checking message BEFORE win/loss (you asked)
                 if state.active.checking_msg_id:
                     await delete_msg(bot, chat_id, state.active.checking_msg_id)
 
@@ -746,7 +736,7 @@ async def engine_loop(app_: Application, my_session: int):
                 pick = state.active.pick
                 is_win = (pick == res_type)
 
-                # --- WIN/LOSS sticker (priority) ---
+                # sticker feedback
                 if is_win:
                     state.wins += 1
                     state.streak_win += 1
@@ -762,17 +752,15 @@ async def engine_loop(app_: Application, my_session: int):
                     state.streak_win = 0
                     await send_sticker(bot, chat_id, STICKERS["LOSS"])
 
-                # --- result message ---
+                # result message
                 await send_html(
                     bot,
                     chat_id,
                     msg_result(want_issue, res_num, res_type, pick, state.wins, state.losses, is_win),
                 )
 
-                # clear active
                 state.active = None
 
-                # stops
                 if cfg.win_target > 0 and state.wins >= cfg.win_target:
                     await stop_session(app_, reason="win_target")
                     break
@@ -781,7 +769,7 @@ async def engine_loop(app_: Application, my_session: int):
                     await stop_session(app_, reason="graceful_done")
                     break
 
-        # B) SEND NEXT PREDICTION (once per next_issue)
+        # B) NEXT PREDICTION
         try:
             next_issue = str(int(latest_issue) + 1)
         except Exception:
@@ -800,17 +788,17 @@ async def engine_loop(app_: Application, my_session: int):
             pred = state.engine.get_pattern_signal(state.streak_loss)
             conf = state.engine.calc_confidence(state.streak_loss)
 
-            # 1) Prediction sticker
+            # 1) prediction sticker
             await send_sticker(bot, chat_id, pred_sticker_for(pred))
 
-            # 2) Prediction message
+            # 2) prediction message
             pred_msg_id = await send_html(
                 bot,
                 chat_id,
                 msg_signal(next_issue, pred, conf, state.streak_loss, state.engine.zigzag_mode),
             )
 
-            # 3) Checking message (animated)
+            # 3) checking message
             checking_id = await send_html(bot, chat_id, msg_checking(next_issue, "🕛", "."))
 
             state.active = ActiveBet(
