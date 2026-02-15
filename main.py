@@ -27,7 +27,7 @@ from telegram.error import RetryAfter, TimedOut, NetworkError
 # CONFIG (✅ TOKEN INSIDE CODE)
 # =========================
 # ✅ ONLY paste your token here:
-HARDCODED_BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE"
+HARDCODED_BOT_TOKEN = "8456002611:AAHsSlu_bv1iVqKuTLjIb0BNvUpxJiBo1p8"
 
 def load_bot_token() -> str:
     # If you ever set Render env BOT_TOKEN, it will override this hardcoded token.
