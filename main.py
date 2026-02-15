@@ -26,7 +26,11 @@ from telegram.error import RetryAfter, TimedOut, NetworkError
 # =========================
 # CONFIG
 # =========================
-BOT_TOKEN = "8456002611:AAEvhsMJFXFuc0OYZCJhQ9WRKyUvryrfsso"  # <-- তোমার আসল টোকেন এখানে বসাও
+# ⚠️ SECURITY: Never hardcode token in public.
+# Set env: BOT_TOKEN="xxxx" then run.
+BOT_TOKEN = os.environ.get("8456002611:AAHsSlu_bv1iVqKuTLjIb0BNvUpxJiBo1p8", "").strip()
+if not BOT_TOKEN:
+    raise RuntimeError("BOT_TOKEN env var not set. Set BOT_TOKEN and restart.")
 
 OWNER_USERNAME = "@OWNER_MARUF_TOP"
 OWNER_LINK = "https://t.me/OWNER_MARUF_TOP"
@@ -134,7 +138,7 @@ def result_emoji(res_type: str) -> str:
 CLOCK_SPIN = ["🕛", "🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚"]
 
 # =========================
-# ✅ STICKER PRIORITY QUEUE (FIX: 1 goes, 2 doesn't)
+# ✅ STICKER PRIORITY QUEUE
 # =========================
 _chat_locks: Dict[int, asyncio.Lock] = {}
 
@@ -172,60 +176,96 @@ async def send_sticker_sequence(bot, chat_id: int, stickers: List[str]) -> None:
 
 
 # =========================
-# ✅ PREDICTION ENGINE (YOUR FINAL LOGIC)
+# ✅ PREDICTION ENGINE (YOUR PROVIDED LOGIC - HUBUHU)
 # =========================
 class PredictionEngine:
     def __init__(self):
-        self.history: List[str] = []
-        self.raw_history: List[dict] = []
-        self.last_prediction: Optional[str] = None
+        self.history: List[str] = []  # ['BIG', 'SMALL', ...]
+        self.raw_history: List[int] = []  # [7, 2, 9, ...]
+        self.zigzag_threshold = 3
+        self.last_period = None
+
+        # UI hints
+        self.last_pattern: str = "NORMAL"
         self.zigzag_mode: bool = False
 
     def update_history(self, issue_data: dict):
         try:
-            number = int(issue_data["number"])
-            result_type = "BIG" if number >= 5 else "SMALL"
+            num = int(issue_data["number"])
+            res_type = "BIG" if num >= 5 else "SMALL"
+
+            # ডুপ্লিকেট ডাটা এড়ানোর জন্য পিরিয়ড চেক
+            if (self.last_period is None) or (self.last_period != issue_data.get("issueNumber")):
+                self.history.insert(0, res_type)
+                self.raw_history.insert(0, num)
+                self.last_period = issue_data.get("issueNumber")
+
+                # মেমোরি ক্লিনআপ (সর্বশেষ ১০০ ডাটা রাখবে)
+                self.history = self.history[:100]
+                self.raw_history = self.raw_history[:100]
         except Exception:
-            return
+            pass
 
-        # Check if it's a new period to avoid duplicate history
-        if (not self.raw_history) or (self.raw_history[0].get("issueNumber") != issue_data.get("issueNumber")):
-            self.history.insert(0, result_type)
-            self.raw_history.insert(0, issue_data)
-            self.history = self.history[:200]
-            self.raw_history = self.raw_history[:200]
+    def _detect_pattern(self) -> str:
+        if len(self.history) < 5:
+            return "NORMAL"
 
-    def _detect_zigzag_mood(self) -> bool:
-        """B-S-B অথবা S-B-S যেকোনো মুড শনাক্ত করবে"""
-        if len(self.history) < 3:
-            return False
+        # ১. ড্রাগন ট্রেন্ড ডিটেকশন (একই রেজাল্ট ৪ বারের বেশি)
+        if all(x == self.history[0] for x in self.history[:4]):
+            return "DRAGON"
 
-        h0, h1, h2 = self.history[0], self.history[1], self.history[2]
-        return (h0 != h1) and (h1 != h2)
+        # ২. জিকজ্যাক মুড ডিটেকশন (B-S-B-S)
+        zigzag_count = 0
+        for i in range(len(self.history) - 1):
+            if self.history[i] != self.history[i + 1]:
+                zigzag_count += 1
+            else:
+                break
+        if zigzag_count >= self.zigzag_threshold:
+            return "ZIGZAG"
+
+        return "NORMAL"
 
     def get_pattern_signal(self, streak_loss: int) -> str:
-        last_result = self.history[0] if self.history else "BIG"
-
-        if self._detect_zigzag_mood():
-            self.zigzag_mode = True
-            prediction = "SMALL" if last_result == "BIG" else "BIG"
-        else:
+        if not self.history:
+            self.last_pattern = "NORMAL"
             self.zigzag_mode = False
-            prediction = last_result
+            return "BIG"
 
-        if streak_loss > 0:
-            prediction = last_result
+        last_res = self.history[0]
+        pattern = self._detect_pattern()
 
-        self.last_prediction = prediction
+        # লজিক ১: যদি ড্রাগন ট্রেন্ড থাকে (টানা ৪ বার বিগ/স্মল)
+        if pattern == "DRAGON":
+            # ট্রেন্ডের সাথে থাকাই বুদ্ধিমানের কাজ
+            prediction = last_res
+
+        # লজিক ২: যদি জিকজ্যাক মুড থাকে (B-S-B-S)
+        elif pattern == "ZIGZAG":
+            # জিকজ্যাক মুড ভাঙ্গার সম্ভাবনা কম থাকলে উল্টোটা দিন
+            prediction = "SMALL" if last_res == "BIG" else "BIG"
+
+        # লজিক ৩: যখন মার্কেট ট্র্যাপ করে (টানা লস হচ্ছে)
+        elif streak_loss >= 2:
+            # ট্র্যাপ থেকে বাঁচতে লাস্ট রেজাল্টের উল্টোটা দিয়ে রিস্ক নিন
+            prediction = "SMALL" if last_res == "BIG" else "BIG"
+
+        # লজিক ৪: নরমাল মার্কেট (বেস্ট ম্যাথমেটিক্যাল এভারেজ)
+        else:
+            prediction = last_res  # ট্রেন্ড ফলো করা ভালো
+
+        self.last_pattern = pattern
+        self.zigzag_mode = (pattern == "ZIGZAG")
         return prediction
 
     def calc_confidence(self, streak_loss: int) -> int:
-        base = random.randint(94, 98)
-        return max(55, base - (streak_loss * 7))
+        # লস বাড়লে কনফিডেন্স কমান যাতে ইউজাররা কম টাকা লাগায়
+        conf = random.randint(93, 97)
+        return max(45, conf - (streak_loss * 8))
 
 
 # =========================
-# API FETCH (FIXED: return list, not only list[0])
+# API FETCH (return list)
 # =========================
 def _fetch_latest_list_sync() -> List[dict]:
     payload = {
@@ -259,7 +299,7 @@ async def fetch_latest_list() -> List[dict]:
 
 
 # =========================
-# TIME PRESETS (YOUR LIST)
+# TIME PRESETS
 # =========================
 SCHEDULE_PRESETS = [
     ("NIGHT_09", "🕘 রাত: 09:00 PM ➜ 09:30 PM", "09:00PM-09:30PM"),
@@ -380,6 +420,7 @@ def init_channels():
 # CLEAN MESSAGE TEMPLATES
 # =========================
 def msg_signal(issue: str, pick: str, conf: int, streak_loss: int, zigzag: bool) -> str:
+    # UI: zigzag true হলে zigzag, নাহলে normal
     mode = "⚡ <b>ZIGZAG</b>" if zigzag else "✅ <b>NORMAL</b>"
     return (
         f"🔥 <b>VIP SIGNAL</b>\n"
@@ -435,10 +476,9 @@ def msg_session_close(cfg: ChannelConfig, wins: int, losses: int) -> str:
 
 
 # =========================
-# SEND HELPERS (EDITED: sticker priority)
+# SEND HELPERS
 # =========================
 async def send_sticker(bot, chat_id: int, sticker_id: str):
-    # ✅ priority + retry + flood wait
     await send_sticker_priority(bot, chat_id, sticker_id)
 
 
@@ -656,7 +696,7 @@ async def checking_spinner_task(bot, chat_id: int, issue: str, msg_id: int, my_s
 
 
 # =========================
-# ENGINE LOOP (FIXED: correct result match + stickers priority)
+# ENGINE LOOP (Sequence fixed exactly as you asked)
 # =========================
 async def engine_loop(app_: Application, my_session: int):
     cfg = state.channels.get(state.current_channel_key or "MAIN")
@@ -681,11 +721,11 @@ async def engine_loop(app_: Application, my_session: int):
 
         latest_issue = str(latest_data.get("issueNumber"))
         latest_num = str(latest_data.get("number"))
-        latest_type = "BIG" if int(latest_num) >= 5 else "SMALL"
 
-        # A) RESULT FEEDBACK (FIXED: match active.predicted_issue inside last 10 list)
+        # A) RESULT FEEDBACK: when active issue appears inside last 10 list
         if state.active:
             want_issue = str(state.active.predicted_issue)
+
             matched = None
             for it in items:
                 if str(it.get("issueNumber")) == want_issue:
@@ -693,18 +733,20 @@ async def engine_loop(app_: Application, my_session: int):
                     break
 
             if matched:
+                # --- stop spinner task first ---
+                if state.active.checking_task:
+                    state.active.checking_task.cancel()
+
+                # --- DELETE checking message BEFORE feedback (as per your flow) ---
+                if state.active.checking_msg_id:
+                    await delete_msg(bot, chat_id, state.active.checking_msg_id)
+
                 res_num = str(matched.get("number"))
                 res_type = "BIG" if int(res_num) >= 5 else "SMALL"
                 pick = state.active.pick
                 is_win = (pick == res_type)
 
-                if state.active.checking_task:
-                    state.active.checking_task.cancel()
-
-                if state.active.checking_msg_id:
-                    await delete_msg(bot, chat_id, state.active.checking_msg_id)
-
-                # sticker priority
+                # --- WIN/LOSS sticker (priority) ---
                 if is_win:
                     state.wins += 1
                     state.streak_win += 1
@@ -720,14 +762,17 @@ async def engine_loop(app_: Application, my_session: int):
                     state.streak_win = 0
                     await send_sticker(bot, chat_id, STICKERS["LOSS"])
 
+                # --- result message ---
                 await send_html(
                     bot,
                     chat_id,
                     msg_result(want_issue, res_num, res_type, pick, state.wins, state.losses, is_win),
                 )
 
+                # clear active
                 state.active = None
 
+                # stops
                 if cfg.win_target > 0 and state.wins >= cfg.win_target:
                     await stop_session(app_, reason="win_target")
                     break
