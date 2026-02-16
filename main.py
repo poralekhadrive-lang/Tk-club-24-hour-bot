@@ -26,6 +26,7 @@ from telegram.error import RetryAfter, TimedOut, NetworkError
 # =========================
 # CONFIG (TOKEN INSIDE CODE)
 # =========================
+# ⚠️ SECURITY: Regenerate token from BotFather and paste here
 BOT_TOKEN = "8456002611:AAHsSlu_bv1iVqKuTLjIb0BNvUpxJiBo1p8"  # ✅ hardcoded (env ignored)
 
 if not BOT_TOKEN or ":" not in BOT_TOKEN:
@@ -103,7 +104,7 @@ def fmt_owner() -> str:
 def footer_line() -> str:
     return (
         f"{STEP_LINE}\n"
-        f"📣 <a href='{CHANNEL_LINK}'>VIP Channel</a>  |  🧾 <a href='{REG_LINK}'>Open Account</a>  |  👤 {fmt_owner()}"
+        f"📣 <a href='{CHANNEL_LINK}'>VIP Channel</a> | 🧾 <a href='{REG_LINK}'>Open Account</a> | 👤 {fmt_owner()}"
     )
 
 def fancy_bs(t: str) -> str:
@@ -153,7 +154,7 @@ async def send_sticker(bot, chat_id: int, sticker_id: str):
     await send_sticker_priority(bot, chat_id, sticker_id)
 
 # =========================
-# ✅ PREDICTION ENGINE (HUBUHU YOUR LOGIC)
+# ✅ PREDICTION ENGINE
 # =========================
 class PredictionEngine:
     def __init__(self):
@@ -256,7 +257,7 @@ async def fetch_latest_list() -> List[dict]:
     return await asyncio.to_thread(_fetch_latest_list_sync)
 
 # =========================
-# TIME PRESETS
+# TIME PRESETS (VIP/PUBLIC window mode)
 # =========================
 SCHEDULE_PRESETS = [
     ("NIGHT_09", "🕘 রাত: 09:00 PM ➜ 09:30 PM", "09:00PM-09:30PM"),
@@ -310,8 +311,16 @@ class ChannelConfig:
     key: str
     chat_id: int
     name: str
+
+    # old window schedule (optional)
     window_text: str = "Not Set"
     window_min: Optional[Tuple[int, int]] = None
+
+    # fixed start-times schedule (MAIN use-case)
+    start_times_min: List[int] = field(default_factory=list)  # minutes in day
+    auto_win_target: int = 15                                 # auto stop after N wins
+
+    # manual win target (panel)
     win_target: int = 0
 
 @dataclass
@@ -353,37 +362,49 @@ class BotState:
     streak_win: int = 0
     streak_loss: int = 0
 
+    # ✅ anti double-trigger for fixed-time schedule
+    last_auto_trigger: Dict[str, str] = field(default_factory=dict)
+
 state = BotState()
 
 def init_channels():
+    # fixed times for MAIN (BD time)
+    main_times = [
+        10 * 60 + 0,     # 10:00 AM
+        12 * 60 + 30,    # 12:30 PM
+        14 * 60 + 30,    # 02:30 PM
+        17 * 60 + 30,    # 05:30 PM
+        21 * 60 + 0,     # 09:00 PM
+        23 * 60 + 30,    # 11:30 PM
+    ]
+
     state.channels = {
-        "MAIN": ChannelConfig("MAIN", TARGETS["MAIN"], "MAIN GROUP"),
+        "MAIN": ChannelConfig("MAIN", TARGETS["MAIN"], "MAIN GROUP", start_times_min=main_times, auto_win_target=15),
         "VIP": ChannelConfig("VIP", TARGETS["VIP"], "VIP"),
         "PUBLIC": ChannelConfig("PUBLIC", TARGETS["PUBLIC"], "PUBLIC"),
     }
 
 # =========================
-# MESSAGE TEMPLATES
+# MESSAGE TEMPLATES (clean)
 # =========================
 def msg_signal(issue: str, pick: str, conf: int, streak_loss: int, zigzag: bool) -> str:
-    mode = "⚡ <b>ZIGZAG</b>" if zigzag else "✅ <b>NORMAL</b>"
+    mode = "ZIGZAG" if zigzag else "NORMAL"
     return (
         f"🔥 <b>VIP SIGNAL</b>\n"
-        f"🧾 <b>PERIOD:</b> <code>{issue}</code>\n"
-        f"{mode}\n"
-        f"🎯 <b>PICK:</b> {badge(pick)}\n"
-        f"✨ <b>CONF:</b> <b>{conf}%</b>  |  🧠 <b>REC:</b> <b>{streak_loss}/{MAX_RECOVERY_STEPS}</b>\n"
+        f"🧾 <b>Period:</b> <code>{issue}</code>\n"
+        f"🎯 <b>Pick:</b> {badge(pick)}   |   ✨ <b>{conf}%</b>\n"
+        f"🧠 <b>Mode:</b> <b>{mode}</b>   |   ♻️ <b>REC:</b> <b>{streak_loss}/{MAX_RECOVERY_STEPS}</b>\n"
         f"⏱ <b>{now_bd_str()}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━\n"
         f"{footer_line()}"
     )
 
 def msg_checking(issue: str, spin: str, dots: str) -> str:
     return (
-        f"{spin} <b>RESULT CHECKING{dots}</b>\n"
-        f"🧾 <b>PERIOD:</b> <code>{issue}</code>\n"
+        f"{spin} <b>Checking{dots}</b>\n"
+        f"🧾 <b>Period:</b> <code>{issue}</code>\n"
         f"⏱ <b>{now_bd_str()}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━\n"
         f"{footer_line()}"
     )
 
@@ -391,28 +412,34 @@ def msg_result(issue: str, res_num: str, res_type: str, pick: str, wins: int, lo
     head = "✅ <b>WIN</b>" if is_win else "❌ <b>LOSS</b>"
     return (
         f"{head}\n"
-        f"🧾 <b>PERIOD:</b> <code>{issue}</code>\n"
-        f"🎰 <b>RESULT:</b> {result_emoji(res_type)} <b>{res_num} ({fancy_bs(res_type)})</b>\n"
-        f"🎯 <b>PICK:</b> {badge(pick)}\n"
+        f"🧾 <b>Period:</b> <code>{issue}</code>\n"
+        f"🎰 <b>Result:</b> {result_emoji(res_type)} <b>{res_num} ({fancy_bs(res_type)})</b>\n"
+        f"🎯 <b>Pick:</b> {badge(pick)}\n"
         f"📊 ✅ <b>{wins}</b> | ❌ <b>{losses}</b>\n"
         f"⏱ <b>{now_bd_str()}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━\n"
         f"{footer_line()}"
     )
 
 def msg_session_close(cfg: ChannelConfig, wins: int, losses: int) -> str:
     total = wins + losses
     wr = (wins / total * 100) if total else 0.0
-    nxt = "<i>Not scheduled</i>"
-    if cfg.window_min:
-        a, b = cfg.window_min
-        nxt = f"<b>{minutes_to_ampm(a)} - {minutes_to_ampm(b)}</b>"
+
+    if cfg.start_times_min:
+        nxt = ", ".join(minutes_to_ampm(x) for x in cfg.start_times_min)
+        nxt = f"<b>{nxt}</b>"
+    else:
+        nxt = "<i>Not scheduled</i>"
+        if cfg.window_min:
+            a, b = cfg.window_min
+            nxt = f"<b>{minutes_to_ampm(a)} - {minutes_to_ampm(b)}</b>"
+
     return (
         f"🛑 <b>SESSION STOP</b>\n"
-        f"📦 <b>Total:</b> <b>{total}</b>  |  ✅ <b>W:</b> <b>{wins}</b>  |  ❌ <b>L:</b> <b>{losses}</b>  |  🎯 <b>{wr:.1f}%</b>\n"
+        f"📦 <b>Total:</b> <b>{total}</b> | ✅ <b>W:</b> <b>{wins}</b> | ❌ <b>L:</b> <b>{losses}</b> | 🎯 <b>{wr:.1f}%</b>\n"
         f"⏭️ <b>Next:</b> {nxt}\n"
         f"⏱ <b>{now_bd_str()}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━\n"
         f"{footer_line()}"
     )
 
@@ -462,9 +489,10 @@ def choose_channel_markup() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 def preset_time_text() -> str:
-    lines = ["🕘 <b>SELECT TIME</b>"]
+    lines = ["🕘 <b>SELECT TIME (Window Mode)</b>"]
     for _, label, _ in SCHEDULE_PRESETS:
         lines.append(label)
+    lines.append("\n<i>Note: MAIN uses fixed times (10:00, 12:30, 14:30, 17:30, 21:00, 23:30)</i>")
     return "\n".join(lines)
 
 def preset_time_markup() -> InlineKeyboardMarkup:
@@ -477,20 +505,27 @@ def preset_time_markup() -> InlineKeyboardMarkup:
 def control_panel_text(cfg: ChannelConfig) -> str:
     status = "🟢 RUNNING" if state.running else "🔴 STOPPED"
     sch = "✅ ON" if state.schedule_mode else "❌ OFF"
-    tw = f"<b>{cfg.window_text}</b>" if cfg.window_min else "<i>Not Set</i>"
+
+    if cfg.start_times_min:
+        times_show = ", ".join(minutes_to_ampm(x) for x in cfg.start_times_min)
+        tw = f"<b>{times_show}</b>\n🎯 Auto Win Target: <b>{cfg.auto_win_target}</b>"
+    else:
+        tw = f"<b>{cfg.window_text}</b>" if cfg.window_min else "<i>Not Set</i>"
+
     wt = f"<b>{cfg.win_target}</b>" if cfg.win_target > 0 else "<i>Not Set</i>"
     total = state.wins + state.losses
     wr = (state.wins / total * 100) if total else 0.0
+
     return (
         f"🎛 <b>{cfg.name} PANEL</b>\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━\n"
         f"📌 Status: {status}\n"
         f"⏰ Schedule: <b>{sch}</b>\n"
         f"🕘 Time: {tw}\n"
-        f"🏆 Win: {wt}\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🏆 Win Target (Manual): {wt}\n"
+        f"━━━━━━━━━━━━\n"
         f"📊 ✅ <b>{state.wins}</b> | ❌ <b>{state.losses}</b> | 🎯 <b>{wr:.1f}%</b>\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━\n"
         f"👤 {fmt_owner()}"
     )
 
@@ -568,7 +603,7 @@ def reset_stats():
     state.streak_win = 0
     state.streak_loss = 0
 
-async def start_session(app_: Application, started_by_schedule: bool):
+async def start_session(app_: Application, started_by_schedule: bool, win_target_override: Optional[int] = None):
     cfg = state.channels.get(state.current_channel_key or "MAIN")
     if not cfg:
         return
@@ -581,6 +616,10 @@ async def start_session(app_: Application, started_by_schedule: bool):
     state.engine = PredictionEngine()
     state.active = None
     reset_stats()
+
+    # ✅ auto-start => force win target (default 15)
+    if started_by_schedule:
+        cfg.win_target = int(win_target_override or cfg.auto_win_target or 15)
 
     await send_sticker(app_.bot, cfg.chat_id, STICKERS["SESSION_START"])
 
@@ -616,12 +655,7 @@ async def checking_spinner_task(bot, chat_id: int, issue: str, msg_id: int, my_s
         await asyncio.sleep(1.1)
 
 # =========================
-# ENGINE LOOP (ORDER YOU ASKED)
-# 1) pred sticker
-# 2) pred message
-# 3) checking msg
-# (result matched) -> delete checking -> win/loss sticker -> result message
-# next loop repeats
+# ENGINE LOOP
 # =========================
 async def engine_loop(app_: Application, my_session: int):
     cfg = state.channels.get(state.current_channel_key or "MAIN")
@@ -643,7 +677,6 @@ async def engine_loop(app_: Application, my_session: int):
 
         latest_data = items[0]
         state.engine.update_history(latest_data)
-
         latest_issue = str(latest_data.get("issueNumber"))
 
         # A) RESULT FEEDBACK
@@ -659,7 +692,7 @@ async def engine_loop(app_: Application, my_session: int):
                 if state.active.checking_task:
                     state.active.checking_task.cancel()
 
-                # ✅ delete checking msg first
+                # delete checking msg first
                 if state.active.checking_msg_id:
                     await delete_msg(bot, chat_id, state.active.checking_msg_id)
 
@@ -693,10 +726,12 @@ async def engine_loop(app_: Application, my_session: int):
 
                 state.active = None
 
+                # ✅ stop when win target reached
                 if cfg.win_target > 0 and state.wins >= cfg.win_target:
                     await stop_session(app_, reason="win_target")
                     break
 
+                # graceful stop on next win
                 if state.graceful_stop_requested and is_win:
                     await stop_session(app_, reason="graceful_done")
                     break
@@ -712,7 +747,7 @@ async def engine_loop(app_: Application, my_session: int):
                 await send_html(
                     bot,
                     chat_id,
-                    f"🧯 <b>SAFETY STOP</b>\n<i>Recovery limit reached.</i>\n━━━━━━━━━━━━━━━━━━\n{footer_line()}",
+                    f"🧯 <b>SAFETY STOP</b>\n<i>Recovery limit reached.</i>\n━━━━━━━━━━━━\n{footer_line()}",
                 )
                 await stop_session(app_, reason="max_steps")
                 break
@@ -765,6 +800,7 @@ async def scheduler_loop(app_: Application):
                 await asyncio.sleep(2)
                 continue
 
+            # panel open + channel selected না হলে schedule trigger করবো না
             if state.menu_mode != "CONTROL" or not state.current_channel_key:
                 await asyncio.sleep(2)
                 continue
@@ -775,8 +811,26 @@ async def scheduler_loop(app_: Application):
                 continue
 
             now = now_bd()
-            in_window = is_now_in_window(cfg, now)
+            mins = now.hour * 60 + now.minute
+            today_key = now.strftime("%Y-%m-%d")
 
+            # ✅ 1) FIXED START TIMES MODE (MAIN)
+            if cfg.start_times_min:
+                if (mins in cfg.start_times_min) and (not state.running):
+                    trigger_key = f"{today_key}:{mins}"
+                    last = state.last_auto_trigger.get(cfg.key)
+
+                    # prevent double trigger within same minute/day
+                    if last != trigger_key:
+                        state.last_auto_trigger[cfg.key] = trigger_key
+                        await start_session(app_, started_by_schedule=True, win_target_override=cfg.auto_win_target)
+                        app_.create_task(engine_loop(app_, state.session_id))
+
+                await asyncio.sleep(3)
+                continue
+
+            # ✅ 2) WINDOW MODE (VIP/PUBLIC)
+            in_window = is_now_in_window(cfg, now)
             if cfg.window_min:
                 if in_window and (not state.running):
                     await start_session(app_, started_by_schedule=True)
@@ -887,6 +941,18 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data == "SET_TIME":
+        # MAIN uses fixed times — no need to set window time
+        if cfg and cfg.start_times_min:
+            await context.bot.send_message(
+                chat_id=state.admin_chat_id,
+                text="ℹ️ <b>MAIN GROUP</b> এ Fixed Auto Time সেট করা আছে:\n"
+                     "<b>10:00AM, 12:30PM, 2:30PM, 5:30PM, 9:00PM, 11:30PM</b>\n\n"
+                     "VIP/PUBLIC এর জন্য Window schedule সেট করতে পারেন ✅",
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+            )
+            return
+
         state.menu_mode = "TIME_PRESET"
         await render_panel(context.bot)
         return
